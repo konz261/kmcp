@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "kmcp"
 include("kmcp-compiler")
+include("kmcp-ksp")
