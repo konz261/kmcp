@@ -17,3 +17,4 @@ rootProject.name = "kmcp"
 include("kmcp-compiler")
 include("kmcp-ksp")
 include("kmcp-runtime")
+include("kmcp-gradle")
