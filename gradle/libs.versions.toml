@@ -1,5 +1,6 @@
 [versions]
 auto-service-annotations = "1.1.1"
+build-config = "4.1.2"
 kotlin = "2.1.0"
 kotlinx-serialization = "1.7.3"
 ksp-api = "2.1.0-1.0.29"
@@ -7,6 +8,7 @@ maven-publish = "0.25.3"
 spotless = "6.25.0"
 
 [plugins]
+build-config = { id = "com.github.gmazzo.buildconfig", version.ref = "build-config" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
