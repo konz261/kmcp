@@ -7,5 +7,9 @@ plugins {
 dependencies {
 	implementation(libs.ksp.api)
 	testImplementation(gradleTestKit())
-	testImplementation(kotlin("test"))
+	testImplementation(kotlin("test-junit5"))
+}
+
+tasks.test {
+	useJUnitPlatform()
 }
