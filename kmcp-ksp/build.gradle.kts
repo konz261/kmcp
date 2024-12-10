@@ -5,6 +5,7 @@ plugins {
 }
 
 dependencies {
+	implementation(project(":kmcp-runtime")) // for metadata classes
 	implementation(libs.ksp.api)
 	testImplementation(gradleTestKit())
 	testImplementation(kotlin("test-junit5"))

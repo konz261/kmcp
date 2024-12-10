@@ -46,6 +46,7 @@ abstract class BaseKspTest {
 			    mavenCentral()
 			    mavenLocal()
 			}
+			
 			plugins {
 			    id("org.jetbrains.kotlin.multiplatform") version "2.1.0"
 			    id("sh.ondr.kmcp") version "0.1.0"
