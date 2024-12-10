@@ -14,6 +14,16 @@ buildConfig {
 	buildConfigField("String", "PLUGIN_VERSION", "\"$pluginVersion\"")
 }
 
+gradlePlugin {
+	plugins {
+		create("main") {
+			id = pluginGroup
+			implementationClass = "$pluginGroup.gradle.KmcpGradlePlugin"
+			version = pluginVersion
+		}
+	}
+}
+
 dependencies {
 	compileOnly(libs.auto.service)
 	compileOnly(libs.auto.service.annotations)
