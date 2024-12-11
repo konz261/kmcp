@@ -1,0 +1,44 @@
+package sh.ondr.kmcp.generated
+
+import sh.ondr.kmcp.runtime.KMCP
+import sh.ondr.kmcp.runtime.tools.Tool
+import sh.ondr.kmcp.runtime.tools.ToolHandler
+import sh.ondr.kmcp.runtime.tools.ToolInputSchema
+import kotlinx.serialization.json.*
+
+object KmcpGeneratedToolRegistryInitializer {
+    init {
+        KMCP.ToolRegistry.defaultValues["greet"] = emptyMap()
+        KMCP.ToolRegistry.tools["greet"] = Tool(
+            name = "greet",
+            description = "This tool greets the user",
+            inputSchema = ToolInputSchema(
+                type = "object",
+                properties = mapOf(
+                    "name" to buildJsonObject {
+                        put("type", JsonPrimitive("string"))
+                        put("description", JsonPrimitive("The name of the user"))
+                    },
+                    "age" to buildJsonObject {
+                        put("type", JsonPrimitive("number"))
+                    },
+                    "location" to buildJsonObject {
+                        put("type", JsonPrimitive("string"))
+                    }),
+                required = listOf("name", "age")
+            )
+        )
+
+        KMCP.ToolRegistry.handlers["greet"] = object : ToolHandler {
+            override fun invoke(params: JsonElement?): Any? {
+                val parameters = KMCP.json.decodeFromJsonElement<KmcpGeneratedGreetParameters>(params ?: JsonNull)
+                return test.greet(
+                    parameters.name,
+                    parameters.age,
+                    parameters.location ?: (KMCP.ToolRegistry.defaultValues["greet"]?.get("location") as? kotlin.String) ?: error("Parameter \"location\" of tool \"greet\" was not provided and no default is available."),
+                )
+            }
+        }
+
+    }
+}

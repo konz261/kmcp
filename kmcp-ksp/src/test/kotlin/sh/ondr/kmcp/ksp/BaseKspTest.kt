@@ -61,15 +61,6 @@ abstract class BaseKspTest {
 			    macosArm64()
 			    iosX64()
 			    iosArm64()
-
-			    sourceSets {
-			        val commonMain by getting
-			        val commonTest by getting {
-			            dependencies {
-			                implementation(kotlin("test"))
-			            }
-			        }
-			    }
 			}
 			""".trimIndent(),
 		)

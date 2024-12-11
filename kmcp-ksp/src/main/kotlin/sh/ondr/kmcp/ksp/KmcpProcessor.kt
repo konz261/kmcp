@@ -9,13 +9,8 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import sh.ondr.kmcp.ksp.TypeUtil.addTypeHint
 import sh.ondr.kmcp.runtime.meta.ParameterMetadata
 import sh.ondr.kmcp.runtime.meta.ToolMetadata
-import kotlin.collections.isNotEmpty
-import kotlin.collections.map
-import kotlin.collections.mapNotNull
-import kotlin.collections.toTypedArray
 
 class KmcpProcessor(
 	private val codeGenerator: CodeGenerator,
@@ -56,7 +51,13 @@ class KmcpProcessor(
 			}
 		}
 
-		generateMcpRegistryInitializer(toolMetadataList)
+		// Generate @Serializable parameter classes for each tool
+		toolMetadataList.forEach { tool ->
+			generateParameterClass(tool)
+		}
+
+		// Generate the registry initializer
+		generateKmcpToolRegistryInitializer(toolMetadataList)
 
 		return emptyList()
 	}
@@ -76,19 +77,11 @@ class KmcpProcessor(
 					val paramName =
 						toolArgAnno?.getStringArgument("name")?.ifEmpty { null }
 							?: param.name?.asString() ?: error("Could not get parameter name")
-					var paramDescription = toolArgAnno?.getStringArgument("description")?.ifEmpty { null }
+
+					val paramDescription = toolArgAnno?.getStringArgument("description")?.ifEmpty { null }
 					val paramTypeRef = param.type.resolve()
 					val paramTypeName = paramTypeRef.declaration.qualifiedName?.asString() ?: paramTypeRef.toString()
 					val isOptional = param.hasDefault
-
-					// Add type hints if needed
-					paramDescription =
-						when (paramTypeName) {
-							"kotlin.Int" -> paramDescription?.addTypeHint(TypeUtil.INT_INFO)
-							"kotlin.Long" -> paramDescription?.addTypeHint(TypeUtil.LONG_INFO)
-							"kotlin.Double", "kotlin.String" -> paramDescription
-							else -> error("Unsupported parameter type: $paramTypeName")
-						}
 
 					ParameterMetadata(
 						name = paramName,
@@ -111,26 +104,63 @@ class KmcpProcessor(
 		}
 	}
 
-	private fun generateMcpRegistryInitializer(toolMetadataList: List<ToolMetadata>) {
+	private fun generateParameterClass(tool: ToolMetadata) {
+		if (tool.parameters.isEmpty()) {
+			return
+		}
+
 		val packageName = "$pkg.generated"
-		val fileName = "GeneratedMcpRegistryInitializer"
+		val className = "KmcpGenerated${tool.name.replaceFirstChar { it.uppercase() }}Parameters"
 
 		val fileContent =
 			buildString {
 				appendLine("package $packageName")
 				appendLine()
-				appendLine("import $pkg.runtime.McpRegistry")
-				appendLine("import $pkg.runtime.meta.ParameterMetadata")
-				appendLine("import $pkg.runtime.meta.ToolMetadata")
+				appendLine("import kotlinx.serialization.Serializable")
+
+				appendLine("@Serializable")
+				append("data class $className(")
+				appendLine()
+				tool.parameters.forEachIndexed { i, param ->
+					val paramType = if (param.isOptional) "${param.type}?" else param.type
+					append("    val ${param.name}: $paramType")
+					if (param.isOptional) append(" = null") // optional param default
+					if (i < tool.parameters.size - 1) append(",\n") else append("\n")
+				}
+				appendLine(")")
+			}
+
+		val file =
+			codeGenerator.createNewFile(
+				Dependencies(aggregating = false, *originatingFiles.toTypedArray()),
+				packageName,
+				"KmcpGenerated${tool.name.replaceFirstChar { it.uppercase() }}Parameters",
+			)
+		file.write(fileContent.toByteArray())
+		file.close()
+	}
+
+	private fun generateKmcpToolRegistryInitializer(toolMetadataList: List<ToolMetadata>) {
+		val packageName = "$pkg.generated"
+		val fileName = "KmcpGeneratedToolRegistryInitializer"
+
+		val fileContent =
+			buildString {
+				appendLine("package $packageName")
+				appendLine()
+				appendLine("import $pkg.runtime.KMCP")
 				appendLine("import $pkg.runtime.tools.Tool")
 				appendLine("import $pkg.runtime.tools.ToolHandler")
 				appendLine("import $pkg.runtime.tools.ToolInputSchema")
-				appendLine("import kotlinx.serialization.json.JsonPrimitive")
-				appendLine("import kotlinx.serialization.json.buildJsonObject")
+				appendLine("import kotlinx.serialization.json.*")
 				appendLine()
-
 				appendLine("object $fileName {")
 				appendLine("    init {")
+
+				// For each tool, we initialize an empty map for defaults:
+				toolMetadataList.forEach { tool ->
+					appendLine("        KMCP.ToolRegistry.defaultValues[\"${tool.name}\"] = emptyMap()")
+				}
 
 				toolMetadataList.forEach { tool ->
 					appendLine(generateToolRegistration(tool))
@@ -141,7 +171,6 @@ class KmcpProcessor(
 				appendLine("}")
 			}
 
-		logger.info("Generated file: $packageName.$fileName, dependencies: $originatingFiles")
 		try {
 			val file =
 				codeGenerator.createNewFile(
@@ -159,12 +188,12 @@ class KmcpProcessor(
 	private fun generateToolRegistration(tool: ToolMetadata): String {
 		val parametersCode =
 			tool.parameters.joinToString(",\n") { param ->
+				val jsonType = typeToJsonType(param.type)
 				buildString {
 					append("                    \"${param.name}\" to buildJsonObject {\n")
-					append("                        put(\"type\", JsonPrimitive(${typeToJsonType(param.type)}))\n")
-					val paramDesc = param.description?.let { "\"$it\"" } ?: "null"
-					if (paramDesc != "null") {
-						append("                        put(\"description\", JsonPrimitive($paramDesc))\n")
+					append("                        put(\"type\", JsonPrimitive($jsonType))\n")
+					param.description?.let { desc ->
+						append("                        put(\"description\", JsonPrimitive(\"$desc\"))\n")
 					}
 					append("                    }")
 				}
@@ -174,14 +203,19 @@ class KmcpProcessor(
 		val requiredList = if (requiredParams.isEmpty()) "null" else "listOf($requiredParams)"
 
 		return buildString {
-			appendLine("        McpRegistry.globalTools[\"${tool.name}\"] = Tool(")
+			appendLine("        KMCP.ToolRegistry.tools[\"${tool.name}\"] = Tool(")
 			appendLine("            name = \"${tool.name}\",")
 			appendLine("            description = ${tool.description?.let { "\"$it\"" } ?: "null"},")
 			appendLine("            inputSchema = ToolInputSchema(")
 			appendLine("                type = \"object\",")
-			appendLine("                properties = mapOf(")
-			append(parametersCode)
-			appendLine("),")
+			if (tool.parameters.isNotEmpty()) {
+				appendLine("                properties = mapOf(")
+				append(parametersCode)
+				appendLine("),")
+			} else {
+				// No parameters
+				appendLine("                properties = null,")
+			}
 			appendLine("                required = $requiredList")
 			appendLine("            )")
 			appendLine("        )")
@@ -189,77 +223,43 @@ class KmcpProcessor(
 	}
 
 	private fun generateToolHandlerRegistration(tool: ToolMetadata): String {
-		val requiredParams = tool.parameters.filter { !it.isOptional }
-		val optionalParams = tool.parameters.filter { it.isOptional }
+		val paramsClassName = "KmcpGenerated${tool.name.replaceFirstChar { it.uppercase() }}Parameters"
+		val indent = "                    " // Indentation for parameters
 
-		val paramHandlingCode = StringBuilder()
-
-		// Required params
-		for (param in requiredParams) {
-			val paramName = param.name
-			paramHandlingCode.appendLine("            val ${paramName}Arg = arguments[\"$paramName\"]")
-			paramHandlingCode.appendLine("            if (${paramName}Arg == null) error(\"Missing parameter $paramName\")")
-			val decodeExpression = decodeParamExpression(paramName, param.type)
-			paramHandlingCode.appendLine("            val typed${paramName.firstLetterUppercase()} = $decodeExpression")
+		// If no parameters, we don't decode anything and just call the function directly.
+		if (tool.parameters.isEmpty()) {
+			return buildString {
+				appendLine("        KMCP.ToolRegistry.handlers[\"${tool.name}\"] = object : ToolHandler {")
+				appendLine("            override fun invoke(params: JsonElement?): Any? {")
+				// No decode needed, just call the function directly
+				appendLine("                return ${tool.fqName}()")
+				appendLine("            }")
+				appendLine("        }")
+			}
 		}
 
-		// Optional params
-		for (param in optionalParams) {
-			val paramName = param.name
-			paramHandlingCode.appendLine("            val ${paramName}Arg = arguments[\"$paramName\"]")
-			val decodeExpression = decodeParamExpression(paramName, param.type)
-			paramHandlingCode.appendLine(
-				"            val typed${paramName.firstLetterUppercase()} = if (${paramName}Arg != null) $decodeExpression else null",
-			)
-		}
-
-		if (optionalParams.isEmpty()) {
-			val argList = requiredParams.joinToString(", ") { "${it.name} = typed${it.name.firstLetterUppercase()}" }
-			paramHandlingCode.appendLine("            return ${tool.fqName}($argList)")
-		} else {
-			val firstOptional = optionalParams.first()
-			val requiredArgList = requiredParams.joinToString(", ") { "${it.name} = typed${it.name.firstLetterUppercase()}" }
-
-			val withOptionalArgList =
-				if (requiredParams.isEmpty()) {
-					"${firstOptional.name} = typed${firstOptional.name.firstLetterUppercase()}"
+		// If we have parameters, we decode them from JSON into our generated class
+		val argList =
+			tool.parameters.joinToString(",\n$indent") { param ->
+				val paramAccess = "parameters.${param.name}"
+				val castType = param.type
+				if (param.isOptional) {
+					"$paramAccess ?: (KMCP.ToolRegistry.defaultValues[\"${tool.name}\"]?.get(\"${param.name}\") as? $castType) " +
+						"?: error(\"Parameter \\\"${param.name}\\\" of tool \\\"${tool.name}\\\" was not provided and no default is available.\")"
 				} else {
-					"$requiredArgList, ${firstOptional.name} = typed${firstOptional.name.firstLetterUppercase()}"
+					paramAccess
 				}
-
-			val withoutOptionalArgList =
-				if (requiredParams.isEmpty()) {
-					""
-				} else {
-					requiredArgList
-				}
-
-			paramHandlingCode.appendLine("            if (typed${firstOptional.name.firstLetterUppercase()} != null) {")
-			paramHandlingCode.appendLine("                return ${tool.fqName}($withOptionalArgList)")
-			paramHandlingCode.appendLine("            } else {")
-			paramHandlingCode.appendLine("                return ${tool.fqName}($withoutOptionalArgList)")
-			paramHandlingCode.appendLine("            }")
-		}
+			}
 
 		return buildString {
-			appendLine("        McpRegistry.globalToolHandlers[\"${tool.name}\"] = object : ToolHandler {")
-			appendLine("            override fun invoke(arguments: Map<String, Any?>): Any? {")
-			append(paramHandlingCode)
+			appendLine("        KMCP.ToolRegistry.handlers[\"${tool.name}\"] = object : ToolHandler {")
+			appendLine("            override fun invoke(params: JsonElement?): Any? {")
+			appendLine("                val parameters = KMCP.json.decodeFromJsonElement<$paramsClassName>(params ?: JsonNull)")
+			appendLine("                return ${tool.fqName}(")
+			appendLine("$indent$argList,")
+			appendLine("                )")
 			appendLine("            }")
 			appendLine("        }")
-		}
-	}
-
-	private fun decodeParamExpression(
-		paramName: String,
-		typeName: String,
-	): String {
-		return when (typeName) {
-			"kotlin.Int" -> "((${paramName}Arg as? Number)?.toInt() ?: error(\"$paramName must be a 32-Bit Integer\"))"
-			"kotlin.Long" -> "((${paramName}Arg as? Number)?.toLong() ?: error(\"$paramName must be a 64-Bit Integer\"))"
-			"kotlin.Double" -> "((${paramName}Arg as? Number)?.toDouble() ?: error(\"$paramName must be Double\"))"
-			"kotlin.String" -> "(${paramName}Arg as? String ?: error(\"$paramName must be String\"))"
-			else -> "error(\"Unsupported parameter type $typeName\")"
 		}
 	}
 
@@ -267,9 +267,7 @@ class KmcpProcessor(
 		return when (typeName) {
 			"kotlin.Int", "kotlin.Long", "kotlin.Double" -> "\"number\""
 			"kotlin.String" -> "\"string\""
-			else -> error("Unsupported parameter type $typeName")
+			else -> "\"object\""
 		}
 	}
-
-	private fun String.firstLetterUppercase() = replaceFirstChar { it.uppercase() }
 }
