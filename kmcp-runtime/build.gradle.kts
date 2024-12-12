@@ -20,6 +20,7 @@ dependencies {
 		sourceSets {
 			commonMain {
 				dependencies {
+					implementation("sh.ondr:kotlin-json-schema:0.1.0")
 					api(libs.kotlinx.serialization.core)
 					api(libs.kotlinx.serialization.json)
 				}
