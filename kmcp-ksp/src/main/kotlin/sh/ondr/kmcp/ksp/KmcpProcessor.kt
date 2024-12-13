@@ -28,7 +28,7 @@ class KmcpProcessor(
 	}
 
 	private fun generateKmcpToolRegistryInitializer(toolMetadataList: List<KSFunctionDeclaration>) {
-		val packageName = "$pkg.runtime.generated"
+		val packageName = "$pkg.generated"
 		val fileName = "KmcpGeneratedToolRegistryInitializer"
 
 		data class ToolInfo(
@@ -69,6 +69,7 @@ class KmcpProcessor(
 				)
 			file.write(fileContent.toByteArray())
 			file.close()
+			logger.warn("Generated file \"$fileName\" with ${tools.size} tools")
 		} catch (e: FileAlreadyExistsException) {
 			// KSP running multiple times... ignore
 		}

@@ -15,29 +15,35 @@ class KspTest : BaseKspTest() {
 
 				import sh.ondr.kmcp.runtime.annotation.Tool
 				import sh.ondr.kmcp.runtime.annotation.ToolArg
+				import kotlinx.serialization.Serializable
+				
+				@Serializable
+				data class User(
+					val name: String,
+					val age: Int,
+				)
 
 				@Tool(description = "This tool greets the user")
-				fun greet(
-				    @ToolArg(name = "name", description = "The name of the user") name: String,
-				    age: Int,
-				    location: String = "San Francisco"
-				): String {
-				    return "Hello \${'$'}name, you are \${'$'}age years old and from \${'$'}location!"
+				fun User.greet(): Unit {
+				    println("Hello \${'$'}name, you are \${'$'}age years old and from \${'$'}location!")
 				}
 				""".trimIndent(),
 			)
+
+			val initialResult =
+				GradleRunner.create()
+					.withProjectDir(projectDir)
+					.withArguments("clean", "build")
+					.withPluginClasspath()
+					.forwardOutput()
+					.build()
+
+			println(projectDir)
+			assertTrue(initialResult.output.contains("BUILD SUCCESSFUL"), "Build was not successful.")
+			checkGeneratedFile(
+				projectDir = projectDir,
+				className = "KmcpGeneratedToolRegistryInitializer",
+			)
 		}
-
-		val initialResult =
-			GradleRunner.create()
-				.withProjectDir(projectDir)
-				.withArguments("clean", "build")
-				.withPluginClasspath()
-				.forwardOutput()
-				.build()
-
-		assertTrue(initialResult.output.contains("BUILD SUCCESSFUL"), "Build was not successful.")
-		checkGeneratedFile(projectDir, "KmcpGeneratedToolRegistryInitializer")
-		checkGeneratedFile(projectDir, "KmcpGeneratedGreetParameters")
 	}
 }

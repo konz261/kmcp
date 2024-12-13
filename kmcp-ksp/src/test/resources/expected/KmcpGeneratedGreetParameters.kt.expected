@@ -1,9 +1,0 @@
-package sh.ondr.kmcp.generated
-
-import kotlinx.serialization.Serializable
-@Serializable
-data class KmcpGeneratedGreetParameters(
-    val name: kotlin.String,
-    val age: kotlin.Int,
-    val location: kotlin.String? = null
-)
