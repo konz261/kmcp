@@ -5,7 +5,8 @@ import sh.ondr.kmcp.runtime.base.Annotations
 
 @Serializable
 data class TextContent(
-	val type: String = "text",
 	val text: String,
 	val annotations: Annotations? = null,
-) : PromptContent, ToolContent, SamplingContent
+) : PromptContent, ToolContent, SamplingContent {
+	override val type: String = "text"
+}

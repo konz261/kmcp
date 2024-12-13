@@ -1,3 +1,3 @@
 package sh.ondr.kmcp.runtime.content
 
-sealed interface PromptContent
+sealed interface PromptContent : Content
