@@ -5,6 +5,7 @@ package sh.ondr.kmcp.runtime
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.serializer
 import sh.ondr.jsonschema.jsonSchema
 import sh.ondr.kmcp.runtime.content.ToolContent
@@ -49,10 +50,11 @@ class Server private constructor() {
 
 	fun callTool(
 		name: String,
-		params: JsonElement,
+		params: JsonElement?,
 	): CallToolResult {
 		val tool: GenericToolMeta = tools[name] ?: error { "Tool not found: $name" }
-		val paramInstance: Any = KMCP.json.decodeFromJsonElement(tool.paramsClass.serializer(), params)
+		val actualParams = params ?: buildJsonObject { }
+		val paramInstance: Any = KMCP.json.decodeFromJsonElement(tool.paramsClass.serializer(), actualParams)
 		return CallToolResult(
 			content = listOf(tool.call(paramInstance)),
 		)
