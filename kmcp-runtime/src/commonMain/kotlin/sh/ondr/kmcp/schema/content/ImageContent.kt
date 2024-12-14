@@ -1,8 +1,8 @@
-package sh.ondr.kmcp.runtime.content
+package sh.ondr.kmcp.schema.content
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import sh.ondr.kmcp.runtime.base.Annotations
+import sh.ondr.kmcp.schema.Annotations
 
 @Serializable
 @SerialName("image")

@@ -1,4 +1,4 @@
-package sh.ondr.kmcp.runtime.base
+package sh.ondr.kmcp.schema
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement

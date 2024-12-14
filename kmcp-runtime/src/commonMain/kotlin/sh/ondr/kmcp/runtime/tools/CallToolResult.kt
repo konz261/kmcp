@@ -1,7 +1,7 @@
 package sh.ondr.kmcp.runtime.tools
 
 import kotlinx.serialization.Serializable
-import sh.ondr.kmcp.runtime.content.ToolContent
+import sh.ondr.kmcp.schema.content.ToolContent
 
 @Serializable
 data class CallToolResult(

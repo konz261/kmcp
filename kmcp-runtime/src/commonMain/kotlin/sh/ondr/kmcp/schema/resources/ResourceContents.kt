@@ -1,4 +1,4 @@
-package sh.ondr.kmcp.runtime.resources
+package sh.ondr.kmcp.schema.resources
 
 import kotlinx.serialization.Serializable
 

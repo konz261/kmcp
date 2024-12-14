@@ -1,9 +1,9 @@
-package sh.ondr.kmcp.runtime.content
+package sh.ondr.kmcp.schema.content
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import sh.ondr.kmcp.runtime.base.Annotations
-import sh.ondr.kmcp.runtime.resources.ResourceContents
+import sh.ondr.kmcp.schema.Annotations
+import sh.ondr.kmcp.schema.resources.ResourceContents
 
 @Serializable
 @SerialName("resource")
