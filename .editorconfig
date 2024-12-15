@@ -3,3 +3,6 @@ root = true
 [*.{kt,gradle.kts}]
 indent_style = tab
 indent_size = 2
+
+[kmcp-runtime/src/commonMain/kotlin/sh/ondr/kmcp/schema/result/Result.kt]
+ktlint_standard_property-naming=disabled

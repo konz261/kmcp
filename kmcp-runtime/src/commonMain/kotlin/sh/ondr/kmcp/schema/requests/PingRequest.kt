@@ -3,7 +3,7 @@ package sh.ondr.kmcp.schema.requests
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import sh.ondr.kmcp.schema.JsonRpcRequest
-import sh.ondr.kmcp.schema.PingParams
+import sh.ondr.kmcp.schema.requests.params.PingParams
 
 @Serializable
 @SerialName("ping")

@@ -2,7 +2,7 @@ package sh.ondr.kmcp.schema.content
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import sh.ondr.kmcp.schema.Annotations
+import sh.ondr.kmcp.schema.annotations.Annotations
 import sh.ondr.kmcp.schema.resources.ResourceContents
 
 @Serializable

@@ -1,12 +1,13 @@
-package sh.ondr.kmcp.schema.requests
+package sh.ondr.kmcp.schema.completion
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import sh.ondr.kmcp.schema.JsonRpcRequest
 
 @Serializable
-@SerialName("roots/list")
-data class ListRootsRequest(
+@SerialName("completion/complete")
+data class CompleteRequest(
 	override val id: String,
-	override val method: String = "roots/list",
+	override val method: String = "completion/complete",
+	val params: CompleteParams,
 ) : JsonRpcRequest()

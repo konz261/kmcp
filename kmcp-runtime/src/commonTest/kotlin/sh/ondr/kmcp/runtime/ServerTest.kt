@@ -2,11 +2,19 @@ package sh.ondr.kmcp.runtime
 
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
 import sh.ondr.kmcp.runtime.annotation.Tool
 import sh.ondr.kmcp.schema.content.TextContent
 import sh.ondr.kmcp.schema.content.ToolContent
+import sh.ondr.kmcp.schema.requests.CallToolRequest
+import sh.ondr.kmcp.schema.requests.params.CallToolParams
 import kotlin.test.Test
+
+inline fun <reified T : @Serializable Any> T.toJsonObject(): JsonObject {
+	return KMCP.json.encodeToJsonElement(this).jsonObject
+}
 
 class ServerTest {
 	@OptIn(InternalSerializationApi::class)
@@ -74,7 +82,16 @@ class ServerTest {
 				dryRun = true,
 			)
 		val requestParams = KMCP.json.encodeToJsonElement(editFileArgs)
-		val callToolResult = server.callTool("editFile", requestParams)
+		val callToolRequest =
+			CallToolRequest(
+				id = "1",
+				params =
+					CallToolParams(
+						name = "editFile",
+						arguments = editFileArgs.toJsonObject(),
+					),
+			)
+		val callToolResult = server.callTool(callToolRequest)
 		println(KMCP.json.encodeToJsonElement(callToolResult))
 	}
 }

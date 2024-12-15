@@ -1,11 +1,12 @@
-package sh.ondr.kmcp.runtime.schema
+package sh.ondr.kmcp.runtime.schema.messages.content
 
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import sh.ondr.kmcp.runtime.KMCP
-import sh.ondr.kmcp.schema.Annotations
+import sh.ondr.kmcp.schema.Role
+import sh.ondr.kmcp.schema.annotations.Annotations
 import sh.ondr.kmcp.schema.content.Content
 import sh.ondr.kmcp.schema.content.EmbeddedResourceContent
 import sh.ondr.kmcp.schema.content.ImageContent
@@ -30,6 +31,7 @@ class SimpleDeserializationTest {
 		assertTrue(deserialized is TextContent)
 		assertEquals(original.text, deserialized.text)
 		assertEquals(original.annotations, deserialized.annotations)
+		assertNull(deserialized.annotations)
 	}
 
 	@Test
@@ -38,7 +40,7 @@ class SimpleDeserializationTest {
 			ImageContent(
 				data = "base64encodeddata",
 				mimeType = "image/png",
-				annotations = Annotations(audience = listOf("user")),
+				annotations = Annotations(audience = listOf(Role.USER)),
 			)
 		val json = KMCP.json.encodeToJsonElement<Content>(original)
 		val jsonObject = json.jsonObject
@@ -66,14 +68,14 @@ class SimpleDeserializationTest {
 		val original =
 			TextContent(
 				text = "Annotated text",
-				annotations = Annotations(audience = listOf("user", "assistant"), priority = 0.5),
+				annotations = Annotations(audience = listOf(Role.USER, Role.ASSISTANT), priority = 0.5),
 			)
 
 		val json = KMCP.json.encodeToJsonElement<Content>(original)
 		val deserialized = KMCP.json.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is TextContent)
 		assertNotNull(deserialized.annotations)
-		assertEquals(listOf("user", "assistant"), deserialized.annotations.audience)
+		assertEquals(listOf(Role.USER, Role.ASSISTANT), deserialized.annotations.audience)
 		assertEquals(0.5, deserialized.annotations.priority)
 	}
 
@@ -99,13 +101,13 @@ class SimpleDeserializationTest {
 		val original =
 			TextContent(
 				text = "Only audience",
-				annotations = Annotations(audience = listOf("assistant")),
+				annotations = Annotations(audience = listOf(Role.ASSISTANT)),
 			)
 		val json = KMCP.json.encodeToJsonElement<Content>(original)
 		val deserialized = KMCP.json.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is TextContent)
 		assertNotNull(deserialized.annotations)
-		assertEquals(listOf("assistant"), deserialized.annotations.audience)
+		assertEquals(listOf(Role.ASSISTANT), deserialized.annotations.audience)
 		assertNull(deserialized.annotations.priority)
 	}
 
@@ -159,7 +161,7 @@ class SimpleDeserializationTest {
 		val original =
 			EmbeddedResourceContent(
 				resource = resource,
-				annotations = Annotations(audience = listOf("user"), priority = 0.9),
+				annotations = Annotations(audience = listOf(Role.USER), priority = 0.9),
 			)
 
 		val json = KMCP.json.encodeToJsonElement<Content>(original)
@@ -172,7 +174,7 @@ class SimpleDeserializationTest {
 		assertEquals("image/png", blobResource.mimeType)
 
 		assertNotNull(deserialized.annotations)
-		assertEquals(listOf("user"), deserialized.annotations.audience)
+		assertEquals(listOf(Role.USER), deserialized.annotations.audience)
 		assertEquals(0.9, deserialized.annotations.priority)
 	}
 
@@ -208,7 +210,7 @@ class SimpleDeserializationTest {
 		assertTrue(deserialized is TextContent)
 		assertNotNull(deserialized.annotations)
 		// audience is empty
-		assertEquals(emptyList<String>(), deserialized.annotations.audience)
+		assertEquals(listOf(), deserialized.annotations.audience)
 		assertNull(deserialized.annotations.priority)
 	}
 }

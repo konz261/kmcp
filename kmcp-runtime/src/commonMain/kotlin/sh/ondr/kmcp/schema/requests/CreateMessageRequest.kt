@@ -2,8 +2,8 @@ package sh.ondr.kmcp.schema.requests
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import sh.ondr.kmcp.schema.CreateMessageParams
 import sh.ondr.kmcp.schema.JsonRpcRequest
+import sh.ondr.kmcp.schema.requests.params.CreateMessageParams
 
 @Serializable
 @SerialName("sampling/createMessage")

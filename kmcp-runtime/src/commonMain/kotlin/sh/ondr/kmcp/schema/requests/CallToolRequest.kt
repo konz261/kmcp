@@ -2,8 +2,8 @@ package sh.ondr.kmcp.schema.requests
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import sh.ondr.kmcp.schema.CallToolParams
 import sh.ondr.kmcp.schema.JsonRpcRequest
+import sh.ondr.kmcp.schema.requests.params.CallToolParams
 
 @Serializable
 @SerialName("tools/call")
