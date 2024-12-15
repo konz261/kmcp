@@ -33,7 +33,7 @@ class KmcpProcessor(
 
 		data class ToolInfo(
 			val name: String,
-			val description: String = "",
+			val description: String? = null,
 		)
 
 		val tools =
@@ -53,9 +53,11 @@ class KmcpProcessor(
 				appendLine()
 				appendLine("object $fileName {")
 				appendLine("    init {")
-				tools.forEach { (name, description) ->
-					appendLine("        KMCP.toolDescriptions[\"$name\"] = \"$description\"")
-				}
+				tools
+					.filter { it.description != null }
+					.forEach { (name, description) ->
+						appendLine("        KMCP.toolDescriptions[\"$name\"] = \"$description\"")
+					}
 				appendLine("    }")
 				appendLine("}")
 			}
@@ -77,5 +79,5 @@ class KmcpProcessor(
 
 	fun KSAnnotation.isToolAnno() = annotationType.resolve().declaration.qualifiedName?.asString() == toolAnnoFqn
 
-	fun KSAnnotation.getStringArgument(name: String): String = arguments.find { it.name?.asString() == name }?.value as String
+	fun KSAnnotation.getStringArgument(name: String): String? = arguments.find { it.name?.asString() == name }?.value as? String
 }
