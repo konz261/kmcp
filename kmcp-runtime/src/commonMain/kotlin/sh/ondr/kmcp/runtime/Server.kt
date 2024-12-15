@@ -15,32 +15,18 @@ import sh.ondr.kmcp.schema.tools.Tool
 import kotlin.reflect.KFunction
 
 class Server private constructor() {
-	companion object {
-		init {
-			println("Server companion init block")
-		}
-	}
-
 	val tools = mutableMapOf<String, Tool>()
 	val toolHandlers = mutableMapOf<String, GenericToolHandler>()
 
 	class Builder {
 		val builderTools = mutableListOf<Pair<Tool, GenericToolHandler>>()
 
-		companion object {
-			init {
-				println("Server.Builder companion init block")
-				println("Tool descriptions available globally: ${KMCP.toolDescriptions.size}")
-			}
-		}
-
 		inline fun <reified T : @Serializable Any, reified R : ToolContent> withTool(noinline toolFunction: T.() -> R): Builder {
 			require(toolFunction is KFunction<*>) { "toolHandler must be a function" }
-			// TODO get description from KMCP.toolDescriptions
 			val tool =
 				Tool(
 					name = toolFunction.name,
-					description = null,
+					description = KMCP.toolDescriptions[toolFunction.name],
 					inputSchema = jsonSchema<T>(),
 				)
 			val toolHandler =
