@@ -1,4 +1,4 @@
-package sh.ondr.kmcp.runtime.schema.messages.content
+package sh.ondr.kmcp.schema.messages.content
 
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement

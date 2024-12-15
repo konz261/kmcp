@@ -1,16 +1,14 @@
-package sh.ondr.kmcp.schema
+package sh.ondr.kmcp.schema.requests
 
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonClassDiscriminator
+import sh.ondr.kmcp.schema.JsonRpcMessage
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 @JsonClassDiscriminator("method")
-abstract class JsonRpcRequest : JsonRpcMessage() {
+sealed class JsonRpcRequest : JsonRpcMessage() {
 	abstract val id: String
-
-	@SerialName("method")
 	abstract val method: String
 }
