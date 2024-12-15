@@ -1,14 +1,16 @@
 package sh.ondr.kmcp.compiler
 
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
+import org.jetbrains.kotlin.backend.common.lower.irBlock
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
-import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.expressions.impl.IrGetObjectValueImpl
+import org.jetbrains.kotlin.ir.builders.irGetObject
+import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
-import org.jetbrains.kotlin.ir.util.defaultType
+import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.util.packageFqName
+import org.jetbrains.kotlin.ir.util.parentClassOrNull
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -18,38 +20,36 @@ class KmcpIrTransformer(
 	private val messageCollector: MessageCollector,
 	private val pluginContext: IrPluginContext,
 ) : IrElementTransformerVoid() {
-	val pkg = "sh.ondr.kmcp"
+	private val pkg = "sh.ondr.kmcp"
 	private val registryClassId = ClassId.topLevel(FqName("$pkg.generated.KmcpGeneratedToolRegistryInitializer"))
 
-	override fun visitClass(declaration: IrClass): IrStatement {
-		super.visitClass(declaration)
-		if (declaration.name.asString() == "ToolMeta" &&
-			declaration.packageFqName?.asString() == "sh.ondr.kmcp.runtime.tools"
-		) {
-			val companion = declaration.declarations.filterIsInstance<IrClass>().find { it.isCompanion }
-			companion?.declarations?.filterIsInstance<IrAnonymousInitializer>()?.forEach { initBlock ->
-				val initBody = initBlock.body
-				val call = createKmcpInitCall(initBlock.startOffset, initBlock.endOffset)
-				initBody.statements.add(0, call)
+	override fun visitConstructorCall(expression: IrConstructorCall): IrExpression {
+		expression.transformChildrenVoid()
+
+		val callee = expression.symbol.owner
+		val isNamedBuilder = callee.constructedClass.name.asString() == "Builder"
+		val isInServer = callee.constructedClass.parentClassOrNull?.name?.asString() == "Server"
+		val isInRuntimePackage = callee.constructedClass.parentClassOrNull?.packageFqName?.asString() == "sh.ondr.kmcp.runtime"
+		if (isNamedBuilder && isInServer && isInRuntimePackage) {
+			val initializerSymbol =
+				pluginContext.referenceClass(
+					registryClassId,
+				) ?: error("Could not find KmcpGeneratedToolRegistryInitializer class")
+
+			val builder =
+				DeclarationIrBuilder(
+					generatorContext = pluginContext,
+					symbol = callee.symbol,
+					startOffset = expression.startOffset,
+					endOffset = expression.endOffset,
+				)
+
+			return builder.irBlock(expression = expression) {
+				+irGetObject(initializerSymbol)
+				+expression
 			}
 		}
-		return declaration
-	}
 
-	private fun createKmcpInitCall(
-		startOffset: Int,
-		endOffset: Int,
-	): IrStatement {
-		val registryClassSymbol =
-			pluginContext.referenceClass(registryClassId)
-				?: error("Could not find KmcpGeneratedToolRegistryInitializer class")
-
-		// IR expression that gets instance of the generated object.
-		return IrGetObjectValueImpl(
-			startOffset = startOffset,
-			endOffset = endOffset,
-			type = registryClassSymbol.owner.defaultType,
-			symbol = registryClassSymbol,
-		)
+		return expression
 	}
 }
