@@ -54,7 +54,7 @@ class KmcpProcessor(
 				appendLine("object $fileName {")
 				appendLine("    init {")
 				tools
-					.filter { it.description!!.isNotEmpty() }
+					.filterNot { it.description.isNullOrEmpty() }
 					.forEach { (name, description) ->
 						appendLine("        KMCP.toolDescriptions[\"$name\"] = \"$description\"")
 					}
@@ -79,5 +79,5 @@ class KmcpProcessor(
 
 	fun KSAnnotation.isToolAnno() = annotationType.resolve().declaration.qualifiedName?.asString() == toolAnnoFqn
 
-	fun KSAnnotation.getStringArgument(name: String): String? = arguments.find { it.name?.asString() == name }?.value as? String
+	fun KSAnnotation.getStringArgument(name: String): String? = arguments.find { it.name?.asString() == name }?.value as String?
 }
