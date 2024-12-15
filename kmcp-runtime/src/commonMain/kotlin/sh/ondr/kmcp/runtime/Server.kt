@@ -4,13 +4,14 @@ package sh.ondr.kmcp.runtime
 
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
 import sh.ondr.jsonschema.jsonSchema
 import sh.ondr.kmcp.runtime.tools.CallToolResult
 import sh.ondr.kmcp.runtime.tools.GenericToolHandler
 import sh.ondr.kmcp.runtime.tools.ToolHandler
 import sh.ondr.kmcp.schema.content.ToolContent
+import sh.ondr.kmcp.schema.requests.CallToolRequest
 import sh.ondr.kmcp.schema.tools.Tool
 import kotlin.reflect.KFunction
 
@@ -59,11 +60,10 @@ class Server private constructor() {
 		toolHandlers.remove(tool.name)
 	}
 
-	fun callTool(
-		name: String,
-		params: JsonElement?,
-	): CallToolResult {
-		val handler = toolHandlers[name] ?: throw IllegalStateException("Handler for tool $name not found")
-		return handler.call(params)
+	fun callTool(request: CallToolRequest): CallToolResult {
+		val toolName = request.params.name
+		val handler = toolHandlers[toolName] ?: throw IllegalStateException("Handler for tool $toolName not found")
+		val jsonArguments = JsonObject(request.params.arguments ?: emptyMap())
+		return handler.call(jsonArguments)
 	}
 }
