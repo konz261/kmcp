@@ -54,7 +54,7 @@ class KmcpProcessor(
 				appendLine("object $fileName {")
 				appendLine("    init {")
 				tools
-					.filter { it.description != null }
+					.filter { it.description!!.isNotEmpty() }
 					.forEach { (name, description) ->
 						appendLine("        KMCP.toolDescriptions[\"$name\"] = \"$description\"")
 					}
