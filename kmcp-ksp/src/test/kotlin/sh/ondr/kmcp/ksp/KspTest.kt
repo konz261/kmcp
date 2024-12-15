@@ -34,7 +34,6 @@ class KspTest : BaseKspTest() {
 				GradleRunner.create()
 					.withProjectDir(projectDir)
 					.withArguments("clean", "build")
-					.withPluginClasspath()
 					.forwardOutput()
 					.build()
 
