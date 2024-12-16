@@ -1,6 +1,7 @@
 [versions]
 auto-service-annotations = "1.1.1"
 build-config = "4.1.2"
+coroutines = "1.9.0"
 kotlin = "2.1.0"
 kotlinx-serialization = "1.7.3"
 ksp-api = "2.1.0-1.0.29"
@@ -19,6 +20,8 @@ spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 [libraries]
 auto-service = { module = "com.google.auto.service:auto-service", version.ref = "auto-service-annotations" }
 auto-service-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "auto-service-annotations" }
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlin-compiler-embeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin" }
 kotlin-gradle-api = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin-api", version.ref = "kotlin" }
 kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
