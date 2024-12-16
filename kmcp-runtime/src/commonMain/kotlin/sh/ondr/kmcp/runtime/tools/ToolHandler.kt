@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import sh.ondr.kmcp.runtime.KMCP
 import sh.ondr.kmcp.schema.content.ToolContent
+import sh.ondr.kmcp.schema.tools.CallToolResult
 
 typealias GenericToolHandler = ToolHandler<*, *>
 
