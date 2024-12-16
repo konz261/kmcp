@@ -1,8 +1,8 @@
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
-import sh.ondr.kmcp.schema.Role
 import sh.ondr.kmcp.schema.content.SamplingContent
-import sh.ondr.kmcp.schema.result.Result
+import sh.ondr.kmcp.schema.core.Result
+import sh.ondr.kmcp.schema.core.Role
 
 @Serializable
 class CreateMessageResult(

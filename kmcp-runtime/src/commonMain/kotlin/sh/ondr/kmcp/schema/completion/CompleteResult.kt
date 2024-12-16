@@ -2,7 +2,7 @@ package sh.ondr.kmcp.schema.completion
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
-import sh.ondr.kmcp.schema.result.Result
+import sh.ondr.kmcp.schema.core.Result
 
 @Serializable
 data class CompleteResult(

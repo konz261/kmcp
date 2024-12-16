@@ -4,5 +4,5 @@ root = true
 indent_style = tab
 indent_size = 2
 
-[kmcp-runtime/src/commonMain/kotlin/sh/ondr/kmcp/schema/result/Result.kt]
+[{kmcp-runtime/src/commonMain/kotlin/sh/ondr/kmcp/schema/core/Result.kt,kmcp-runtime/src/commonMain/kotlin/sh/ondr/kmcp/schema/core/JsonRpcNotification.kt}]
 ktlint_standard_property-naming=disabled
