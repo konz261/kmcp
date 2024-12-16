@@ -8,5 +8,4 @@ import sh.ondr.kmcp.schema.core.JsonRpcRequest
 @SerialName("roots/list")
 data class ListRootsRequest(
 	override val id: String,
-	override val method: String = "roots/list",
 ) : JsonRpcRequest()

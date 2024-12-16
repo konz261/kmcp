@@ -8,7 +8,6 @@ import sh.ondr.kmcp.schema.core.JsonRpcRequest
 @SerialName("initialize")
 data class InitializeRequest(
 	override val id: String,
-	override val method: String = "initialize",
 	val params: InitializeParams,
 ) : JsonRpcRequest() {
 	@Serializable

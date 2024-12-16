@@ -8,7 +8,6 @@ import sh.ondr.kmcp.schema.core.JsonRpcRequest
 @SerialName("resources/subscribe")
 data class SubscribeRequest(
 	override val id: String,
-	override val method: String = "resources/subscribe",
 	val params: SubscribeParams,
 ) : JsonRpcRequest() {
 	@Serializable

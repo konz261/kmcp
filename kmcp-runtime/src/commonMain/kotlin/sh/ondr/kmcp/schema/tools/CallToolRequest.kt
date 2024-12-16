@@ -9,7 +9,6 @@ import sh.ondr.kmcp.schema.core.JsonRpcRequest
 @SerialName("tools/call")
 data class CallToolRequest(
 	override val id: String,
-	override val method: String = "tools/call",
 	val params: CallToolParams,
 ) : JsonRpcRequest() {
 	@Serializable

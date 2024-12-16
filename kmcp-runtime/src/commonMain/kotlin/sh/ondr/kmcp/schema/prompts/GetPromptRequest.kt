@@ -8,7 +8,6 @@ import sh.ondr.kmcp.schema.core.JsonRpcRequest
 @SerialName("prompts/get")
 data class GetPromptRequest(
 	override val id: String,
-	override val method: String = "prompts/get",
 	val params: GetPromptParams,
 ) : JsonRpcRequest() {
 	@Serializable

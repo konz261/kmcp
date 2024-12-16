@@ -8,7 +8,6 @@ import kotlinx.serialization.json.JsonPrimitive
 @Serializable
 @SerialName("notifications/progress")
 data class ProgressNotification(
-	override val method: String = "notifications/progress",
 	override val params: ProgressParams,
 ) : JsonRpcNotification() {
 	/**

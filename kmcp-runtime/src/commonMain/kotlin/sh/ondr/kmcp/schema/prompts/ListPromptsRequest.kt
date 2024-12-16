@@ -9,7 +9,6 @@ import sh.ondr.kmcp.schema.core.Paginated
 @SerialName("prompts/list")
 data class ListPromptsRequest(
 	override val id: String,
-	override val method: String = "prompts/list",
 	val params: ListPromptsParams? = null,
 ) : JsonRpcRequest(), Paginated {
 	override val cursor: String? get() = params?.cursor

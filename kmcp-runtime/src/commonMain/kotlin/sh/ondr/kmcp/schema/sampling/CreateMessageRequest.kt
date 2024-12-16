@@ -9,7 +9,6 @@ import sh.ondr.kmcp.schema.core.JsonRpcRequest
 @SerialName("sampling/createMessage")
 data class CreateMessageRequest(
 	override val id: String,
-	override val method: String = "sampling/createMessage",
 	val params: CreateMessageParams,
 ) : JsonRpcRequest() {
 	// includeContext = "allServers" | "none" | "thisServer"

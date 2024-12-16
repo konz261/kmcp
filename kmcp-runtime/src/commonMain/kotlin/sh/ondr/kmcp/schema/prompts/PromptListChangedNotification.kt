@@ -12,6 +12,5 @@ import sh.ondr.kmcp.schema.core.NotificationParams
 @Serializable
 @SerialName("notifications/prompts/list_changed")
 data class PromptListChangedNotification(
-	override val method: String = "notifications/prompts/list_changed",
 	override val params: NotificationParams? = null,
 ) : JsonRpcNotification()

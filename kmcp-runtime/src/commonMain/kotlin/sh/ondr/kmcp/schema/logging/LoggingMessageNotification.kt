@@ -9,7 +9,6 @@ import sh.ondr.kmcp.schema.core.NotificationParams
 @Serializable
 @SerialName("notifications/message")
 data class LoggingMessageNotification(
-	override val method: String = "notifications/message",
 	override val params: LoggingMessageParams,
 ) : JsonRpcNotification() {
 	/**

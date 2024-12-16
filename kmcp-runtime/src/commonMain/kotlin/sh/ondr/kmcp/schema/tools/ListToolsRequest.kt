@@ -9,7 +9,6 @@ import sh.ondr.kmcp.schema.core.Paginated
 @SerialName("tools/list")
 data class ListToolsRequest(
 	override val id: String,
-	override val method: String = "tools/list",
 	val params: ListToolsParams? = null,
 ) : JsonRpcRequest(), Paginated {
 	override val cursor: String? get() = params?.cursor

@@ -5,12 +5,12 @@ import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import sh.ondr.kmcp.runtime.KMCP
-import sh.ondr.kmcp.schema.Role
-import sh.ondr.kmcp.schema.annotations.Annotations
 import sh.ondr.kmcp.schema.content.Content
 import sh.ondr.kmcp.schema.content.EmbeddedResourceContent
 import sh.ondr.kmcp.schema.content.ImageContent
 import sh.ondr.kmcp.schema.content.TextContent
+import sh.ondr.kmcp.schema.core.Annotations
+import sh.ondr.kmcp.schema.core.Role
 import sh.ondr.kmcp.schema.resources.ResourceContents
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -20,7 +20,6 @@ import sh.ondr.kmcp.runtime.KMCP
 @Polymorphic
 abstract class JsonRpcNotification : JsonRpcMessage {
 	val jsonrpc: String = KMCP.JSON_RPC_VERSION
-	abstract val method: String
 	abstract val params: NotificationParams?
 }
 
@@ -47,7 +46,6 @@ interface NotificationParams {
 @Serializable
 @SerialName("notifications/cancelled")
 data class CancelledNotification(
-	override val method: String = "notifications/cancelled",
 	override val params: CancelledParams,
 ) : JsonRpcNotification() {
 	@Serializable

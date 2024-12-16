@@ -12,6 +12,5 @@ import sh.ondr.kmcp.schema.core.NotificationParams
 @Serializable
 @SerialName("notifications/initialized")
 data class InitializedNotification(
-	override val method: String = "notifications/initialized",
 	override val params: NotificationParams? = null,
 ) : JsonRpcNotification()

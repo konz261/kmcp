@@ -9,5 +9,4 @@ import sh.ondr.kmcp.runtime.KMCP
 abstract class JsonRpcRequest : JsonRpcMessage {
 	val jsonrpc: String = KMCP.JSON_RPC_VERSION
 	abstract val id: String
-	abstract val method: String
 }

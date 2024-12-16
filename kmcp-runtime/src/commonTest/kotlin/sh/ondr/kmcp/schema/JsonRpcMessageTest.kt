@@ -2,10 +2,11 @@ package sh.ondr.kmcp.schema
 
 import kotlinx.serialization.json.jsonPrimitive
 import sh.ondr.kmcp.runtime.KMCP
-import sh.ondr.kmcp.runtime.serialization.toJsonMessage
+import sh.ondr.kmcp.runtime.serialization.toJsonRpcMessage
 import sh.ondr.kmcp.schema.tools.CallToolRequest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class JsonRpcMessageTest {
@@ -27,11 +28,11 @@ class JsonRpcMessageTest {
             }
         }"""
 
-		val message = input.toJsonMessage()
+		val message = input.toJsonRpcMessage()
 		assertTrue(message is CallToolRequest, "Expected a CallToolRequest")
 		val request = message
 		assertEquals("1", request.id)
-		assertEquals("tools/call", request.method)
+		assertIs<CallToolRequest>(request)
 		assertEquals("sendEmail", request.params.name)
 		assertEquals("me@test.com", request.params.arguments!!["recipient"]?.jsonPrimitive?.content)
 	}

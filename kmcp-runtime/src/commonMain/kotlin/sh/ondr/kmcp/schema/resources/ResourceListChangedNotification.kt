@@ -12,6 +12,5 @@ import sh.ondr.kmcp.schema.core.NotificationParams
 @Serializable
 @SerialName("notifications/resources/list_changed")
 data class ResourceListChangedNotification(
-	override val method: String = "notifications/resources/list_changed",
 	override val params: NotificationParams? = null,
 ) : JsonRpcNotification()

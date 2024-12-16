@@ -8,6 +8,5 @@ import sh.ondr.kmcp.schema.core.JsonRpcRequest
 @SerialName("completion/complete")
 data class CompleteRequest(
 	override val id: String,
-	override val method: String = "completion/complete",
 	val params: CompleteParams,
 ) : JsonRpcRequest()
