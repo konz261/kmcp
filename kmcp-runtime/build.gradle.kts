@@ -4,33 +4,32 @@ plugins {
 	alias(libs.plugins.maven.publish)
 }
 
-dependencies {
-	kotlin {
-		jvm()
+kotlin {
+	jvm()
 
-		js(IR) { nodejs() }
+	js(IR) { nodejs() }
 
-		macosArm64()
+	macosArm64()
 
-		listOf(
-			iosX64(),
-			iosArm64(),
-		)
+	listOf(
+		iosX64(),
+		iosArm64(),
+	)
 
-		sourceSets {
-			commonMain {
-				dependencies {
-					implementation("sh.ondr:kotlin-json-schema:0.1.0")
-					implementation(libs.coroutines.core)
-					api(libs.kotlinx.serialization.core)
-					api(libs.kotlinx.serialization.json)
-				}
+	sourceSets {
+		commonMain {
+			dependencies {
+				implementation("sh.ondr:kotlin-json-schema:0.1.0")
+				implementation(libs.kotlinx.atomicfu)
+				implementation(libs.coroutines.core)
+				api(libs.kotlinx.serialization.core)
+				api(libs.kotlinx.serialization.json)
 			}
-			commonTest {
-				dependencies {
-					implementation(libs.coroutines.test)
-					implementation(kotlin("test"))
-				}
+		}
+		commonTest {
+			dependencies {
+				implementation(libs.coroutines.test)
+				implementation(kotlin("test"))
 			}
 		}
 	}
