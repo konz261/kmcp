@@ -7,10 +7,10 @@ import sh.ondr.kmcp.runtime.kmcpJson
 import sh.ondr.kmcp.schema.content.ToolContent
 import sh.ondr.kmcp.schema.tools.CallToolResult
 
-typealias GenericToolHandler = ToolHandler<*, *>
+typealias GenericToolHandler = ToolHandler<*>
 
-data class ToolHandler<T : @Serializable Any, R : ToolContent>(
-	val function: T.() -> R,
+data class ToolHandler<T : @Serializable Any>(
+	val function: T.() -> ToolContent,
 	val paramsSerializer: KSerializer<T>,
 ) {
 	@Suppress("UNCHECKED_CAST")
