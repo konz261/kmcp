@@ -21,13 +21,13 @@ import sh.ondr.kmcp.schema.prompts.GetPromptRequest
 import sh.ondr.kmcp.schema.prompts.GetPromptResult
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest
 import sh.ondr.kmcp.schema.prompts.ListPromptsResult
-import sh.ondr.kmcp.schema.prompts.Prompt
 import sh.ondr.kmcp.schema.prompts.PromptArgument
+import sh.ondr.kmcp.schema.prompts.PromptInfo
 import sh.ondr.kmcp.schema.tools.CallToolRequest.CallToolParams
 import sh.ondr.kmcp.schema.tools.CallToolResult
 import sh.ondr.kmcp.schema.tools.ListToolsRequest.ListToolsParams
 import sh.ondr.kmcp.schema.tools.ListToolsResult
-import sh.ondr.kmcp.schema.tools.Tool
+import sh.ondr.kmcp.schema.tools.ToolInfo
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KFunction
 
@@ -69,9 +69,9 @@ import kotlin.reflect.KFunction
  */
 class Server private constructor(
 	private val transport: Transport,
-	private val tools: MutableMap<String, Tool>,
+	private val tools: MutableMap<String, ToolInfo>,
 	private val toolHandlers: MutableMap<String, GenericToolHandler>,
-	private val prompts: MutableMap<String, Prompt>,
+	private val prompts: MutableMap<String, PromptInfo>,
 	private val promptHandlers: MutableMap<String, PromptHandler>,
 	private val logger: ((String) -> Unit)?,
 	private val dispatcher: CoroutineContext, // For testing
@@ -85,11 +85,11 @@ class Server private constructor(
 	/**
 	 * Adds a new tool and its corresponding handler at runtime.
 	 *
-	 * @param tool The [Tool] definition containing its name, description, and input schema.
+	 * @param tool The [ToolInfo] definition containing its name, description, and input schema.
 	 * @param handler The [GenericToolHandler] that implements the tool's logic.
 	 */
 	fun addTool(
-		tool: Tool,
+		tool: ToolInfo,
 		handler: GenericToolHandler,
 	) {
 		tools[tool.name] = tool
@@ -99,9 +99,9 @@ class Server private constructor(
 	/**
 	 * Removes a previously added tool.
 	 *
-	 * @param tool The [Tool] to remove.
+	 * @param tool The [ToolInfo] to remove.
 	 */
-	fun removeTool(tool: Tool) {
+	fun removeTool(tool: ToolInfo) {
 		tools.remove(tool.name)
 		toolHandlers.remove(tool.name)
 	}
@@ -162,13 +162,13 @@ class Server private constructor(
 	 */
 	class Builder {
 		@PublishedApi
-		internal var builderTools = mutableMapOf<String, Tool>()
+		internal var builderTools = mutableMapOf<String, ToolInfo>()
 
 		@PublishedApi
 		internal val builderHandlers = mutableMapOf<String, GenericToolHandler>()
 
 		@PublishedApi
-		internal val builderPrompts = mutableMapOf<String, Prompt>()
+		internal val builderPrompts = mutableMapOf<String, PromptInfo>()
 
 		@PublishedApi
 		internal val builderPromptHandlers = mutableMapOf<String, PromptHandler>()
@@ -205,7 +205,7 @@ class Server private constructor(
 				}
 				val name = toolFunction.name
 				builderTools[name] =
-					Tool(
+					ToolInfo(
 						name = name,
 						description = KMCP.toolDescriptions[name],
 						inputSchema = jsonSchema<T>(),
@@ -227,7 +227,7 @@ class Server private constructor(
 			generate: (Map<String, String>?) -> GetPromptResult,
 		) = apply {
 			require(name !in builderPrompts) { "Prompt with name $name already registered." }
-			builderPrompts[name] = Prompt(name, description, arguments)
+			builderPrompts[name] = PromptInfo(name, description, arguments)
 			builderPromptHandlers[name] = PromptHandler(generate)
 		}
 

@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import sh.ondr.jsonschema.JsonSchema
 
 @Serializable
-data class Tool(
+data class ToolInfo(
 	val name: String,
 	val description: String? = null,
 	val inputSchema: JsonSchema,

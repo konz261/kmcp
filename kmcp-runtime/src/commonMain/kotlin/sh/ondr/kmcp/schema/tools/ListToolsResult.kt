@@ -6,7 +6,7 @@ import sh.ondr.kmcp.schema.core.PaginatedResult
 
 @Serializable
 data class ListToolsResult(
-	val tools: List<Tool>,
+	val tools: List<ToolInfo>,
 	override val _meta: Map<String, JsonElement>? = null,
 	override val nextCursor: String? = null,
 ) : PaginatedResult

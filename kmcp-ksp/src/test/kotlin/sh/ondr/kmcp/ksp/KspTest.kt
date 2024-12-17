@@ -14,7 +14,6 @@ class KspTest : BaseKspTest() {
 				package test
 
 				import sh.ondr.kmcp.runtime.annotation.Tool
-				import sh.ondr.kmcp.runtime.annotation.ToolArg
 				import kotlinx.serialization.Serializable
 				
 				@Serializable

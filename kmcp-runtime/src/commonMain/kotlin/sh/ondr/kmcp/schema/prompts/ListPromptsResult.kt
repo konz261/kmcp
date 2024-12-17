@@ -6,7 +6,7 @@ import sh.ondr.kmcp.schema.core.PaginatedResult
 
 @Serializable
 data class ListPromptsResult(
-	val prompts: List<Prompt>,
+	val prompts: List<PromptInfo>,
 	override val _meta: Map<String, JsonElement>? = null,
 	override val nextCursor: String? = null,
 ) : PaginatedResult
