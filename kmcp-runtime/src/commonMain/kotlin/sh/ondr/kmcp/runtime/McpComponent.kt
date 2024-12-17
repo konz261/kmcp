@@ -1,6 +1,4 @@
-@file:OptIn(InternalSerializationApi::class)
-
-package sh.ondr.kmcp.runtime.core
+package sh.ondr.kmcp.runtime
 
 import CreateMessageResult
 import kotlinx.atomicfu.atomic
@@ -11,58 +9,72 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.json.JsonElement
-import sh.ondr.kmcp.runtime.KMCP
+import sh.ondr.kmcp.runtime.core.notImplemented
+import sh.ondr.kmcp.runtime.core.returnErrorResponse
 import sh.ondr.kmcp.runtime.serialization.serializeResult
 import sh.ondr.kmcp.runtime.serialization.serializeToString
 import sh.ondr.kmcp.runtime.serialization.toJsonRpcMessage
 import sh.ondr.kmcp.runtime.transport.Transport
 import sh.ondr.kmcp.runtime.transport.runTransportLoop
 import sh.ondr.kmcp.schema.capabilities.InitializeRequest
+import sh.ondr.kmcp.schema.capabilities.InitializeRequest.InitializeParams
 import sh.ondr.kmcp.schema.capabilities.InitializeResult
 import sh.ondr.kmcp.schema.capabilities.InitializedNotification
 import sh.ondr.kmcp.schema.completion.CompleteParams
 import sh.ondr.kmcp.schema.completion.CompleteRequest
 import sh.ondr.kmcp.schema.completion.CompleteResult
 import sh.ondr.kmcp.schema.core.CancelledNotification
+import sh.ondr.kmcp.schema.core.CancelledNotification.CancelledParams
 import sh.ondr.kmcp.schema.core.EmptyResult
 import sh.ondr.kmcp.schema.core.JsonRpcErrorCodes
 import sh.ondr.kmcp.schema.core.JsonRpcNotification
 import sh.ondr.kmcp.schema.core.JsonRpcRequest
 import sh.ondr.kmcp.schema.core.JsonRpcResponse
 import sh.ondr.kmcp.schema.core.PingRequest
+import sh.ondr.kmcp.schema.core.PingRequest.PingParams
 import sh.ondr.kmcp.schema.core.ProgressNotification
+import sh.ondr.kmcp.schema.core.ProgressNotification.ProgressParams
 import sh.ondr.kmcp.schema.logging.LoggingLevel
 import sh.ondr.kmcp.schema.logging.LoggingMessageNotification
 import sh.ondr.kmcp.schema.logging.LoggingMessageNotification.LoggingMessageParams
 import sh.ondr.kmcp.schema.logging.SetLevelRequest
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest
+import sh.ondr.kmcp.schema.prompts.GetPromptRequest.GetPromptParams
 import sh.ondr.kmcp.schema.prompts.GetPromptResult
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest
+import sh.ondr.kmcp.schema.prompts.ListPromptsRequest.ListPromptsParams
 import sh.ondr.kmcp.schema.prompts.ListPromptsResult
 import sh.ondr.kmcp.schema.prompts.PromptListChangedNotification
 import sh.ondr.kmcp.schema.resources.ListResourceTemplatesRequest
 import sh.ondr.kmcp.schema.resources.ListResourceTemplatesRequest.ListResourceTemplatesParams
 import sh.ondr.kmcp.schema.resources.ListResourceTemplatesResult
 import sh.ondr.kmcp.schema.resources.ListResourcesRequest
+import sh.ondr.kmcp.schema.resources.ListResourcesRequest.ListResourcesParams
 import sh.ondr.kmcp.schema.resources.ListResourcesResult
 import sh.ondr.kmcp.schema.resources.ReadResourceRequest
+import sh.ondr.kmcp.schema.resources.ReadResourceRequest.ReadResourceParams
 import sh.ondr.kmcp.schema.resources.ReadResourceResult
 import sh.ondr.kmcp.schema.resources.ResourceListChangedNotification
 import sh.ondr.kmcp.schema.resources.ResourceUpdatedNotification
 import sh.ondr.kmcp.schema.resources.ResourceUpdatedNotification.ResourceUpdatedParams
 import sh.ondr.kmcp.schema.resources.SubscribeRequest
+import sh.ondr.kmcp.schema.resources.SubscribeRequest.SubscribeParams
 import sh.ondr.kmcp.schema.resources.UnsubscribeRequest
+import sh.ondr.kmcp.schema.resources.UnsubscribeRequest.UnsubscribeParams
 import sh.ondr.kmcp.schema.roots.ListRootsRequest
 import sh.ondr.kmcp.schema.roots.ListRootsResult
 import sh.ondr.kmcp.schema.roots.RootsListChangedNotification
 import sh.ondr.kmcp.schema.sampling.CreateMessageRequest
+import sh.ondr.kmcp.schema.sampling.CreateMessageRequest.CreateMessageParams
 import sh.ondr.kmcp.schema.tools.CallToolRequest
+import sh.ondr.kmcp.schema.tools.CallToolRequest.CallToolParams
 import sh.ondr.kmcp.schema.tools.CallToolResult
 import sh.ondr.kmcp.schema.tools.ListToolsRequest
+import sh.ondr.kmcp.schema.tools.ListToolsRequest.ListToolsParams
 import sh.ondr.kmcp.schema.tools.ListToolsResult
 import sh.ondr.kmcp.schema.tools.ToolListChangedNotification
+import kotlin.collections.iterator
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -149,31 +161,32 @@ abstract class McpComponent(
 	// Abstract Handlers for Requests (To be Overridden)
 	// -----------------------------------------------------
 
-	open suspend fun handleInitializeRequest(params: InitializeRequest.InitializeParams): InitializeResult = notImplemented()
+	// Has default implementation
+	open suspend fun handlePingRequest(params: PingParams?): EmptyResult = EmptyResult()
 
-	open suspend fun handlePingRequest(params: PingRequest.PingParams?): EmptyResult = notImplemented()
+	open suspend fun handleInitializeRequest(params: InitializeParams): InitializeResult = notImplemented()
 
-	open suspend fun handleCallToolRequest(params: CallToolRequest.CallToolParams): CallToolResult = notImplemented()
+	open suspend fun handleCallToolRequest(params: CallToolParams): CallToolResult = notImplemented()
 
-	open suspend fun handleListToolsRequest(params: ListToolsRequest.ListToolsParams?): ListToolsResult = notImplemented()
+	open suspend fun handleListToolsRequest(params: ListToolsParams?): ListToolsResult = notImplemented()
 
-	open suspend fun handleCreateMessageRequest(params: CreateMessageRequest.CreateMessageParams): CreateMessageResult = notImplemented()
+	open suspend fun handleCreateMessageRequest(params: CreateMessageParams): CreateMessageResult = notImplemented()
 
 	open suspend fun handleListRootsRequest(): ListRootsResult = notImplemented()
 
 	open suspend fun handleListResourceTemplatesRequest(params: ListResourceTemplatesParams?): ListResourceTemplatesResult = notImplemented()
 
-	open suspend fun handleListResourcesRequest(params: ListResourcesRequest.ListResourcesParams?): ListResourcesResult = notImplemented()
+	open suspend fun handleListResourcesRequest(params: ListResourcesParams?): ListResourcesResult = notImplemented()
 
-	open suspend fun handleReadResourceRequest(params: ReadResourceRequest.ReadResourceParams): ReadResourceResult = notImplemented()
+	open suspend fun handleReadResourceRequest(params: ReadResourceParams): ReadResourceResult = notImplemented()
 
-	open suspend fun handleSubscribeRequest(params: SubscribeRequest.SubscribeParams): EmptyResult = notImplemented()
+	open suspend fun handleSubscribeRequest(params: SubscribeParams): EmptyResult = notImplemented()
 
-	open suspend fun handleUnsubscribeRequest(params: UnsubscribeRequest.UnsubscribeParams): EmptyResult = notImplemented()
+	open suspend fun handleUnsubscribeRequest(params: UnsubscribeParams): EmptyResult = notImplemented()
 
-	open suspend fun handleGetPromptRequest(params: GetPromptRequest.GetPromptParams): GetPromptResult = notImplemented()
+	open suspend fun handleGetPromptRequest(params: GetPromptParams): GetPromptResult = notImplemented()
 
-	open suspend fun handleListPromptsRequest(params: ListPromptsRequest.ListPromptsParams?): ListPromptsResult = notImplemented()
+	open suspend fun handleListPromptsRequest(params: ListPromptsParams?): ListPromptsResult = notImplemented()
 
 	open suspend fun handleSetLevelRequest(params: LoggingLevel): EmptyResult = notImplemented()
 
@@ -185,9 +198,9 @@ abstract class McpComponent(
 
 	protected open suspend fun handleInitializedNotification(): Unit = notImplemented()
 
-	protected open suspend fun handleCancelledNotification(params: CancelledNotification.CancelledParams): Unit = notImplemented()
+	protected open suspend fun handleCancelledNotification(params: CancelledParams): Unit = notImplemented()
 
-	protected open suspend fun handleProgressNotification(params: ProgressNotification.ProgressParams): Unit = notImplemented()
+	protected open suspend fun handleProgressNotification(params: ProgressParams): Unit = notImplemented()
 
 	protected open suspend fun handleLoggingMessageNotification(params: LoggingMessageParams): Unit = notImplemented()
 
@@ -301,7 +314,7 @@ abstract class McpComponent(
 
 	private suspend fun dispatchRequest(request: JsonRpcRequest) {
 		val response = handleRequest(request)
-		val responseLine = KMCP.json.encodeToString(JsonRpcResponse.serializer(), response)
+		val responseLine = kmcpJson.encodeToString(JsonRpcResponse.serializer(), response)
 		logOutgoing(responseLine)
 		transport.writeString(responseLine)
 	}

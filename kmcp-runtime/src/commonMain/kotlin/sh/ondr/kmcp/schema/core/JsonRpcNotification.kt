@@ -7,7 +7,7 @@ import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
-import sh.ondr.kmcp.runtime.KMCP
+import sh.ondr.kmcp.runtime.JSON_RPC_VERSION
 
 /**
  * Base class for all JSON-RPC notifications.
@@ -19,7 +19,7 @@ import sh.ondr.kmcp.runtime.KMCP
 @Serializable
 @Polymorphic
 abstract class JsonRpcNotification : JsonRpcMessage {
-	val jsonrpc: String = KMCP.JSON_RPC_VERSION
+	val jsonrpc: String = JSON_RPC_VERSION
 	abstract val params: NotificationParams?
 }
 

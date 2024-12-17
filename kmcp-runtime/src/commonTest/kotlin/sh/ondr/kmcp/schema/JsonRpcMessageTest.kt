@@ -1,7 +1,6 @@
 package sh.ondr.kmcp.schema
 
 import kotlinx.serialization.json.jsonPrimitive
-import sh.ondr.kmcp.runtime.KMCP
 import sh.ondr.kmcp.runtime.serialization.toJsonRpcMessage
 import sh.ondr.kmcp.schema.tools.CallToolRequest
 import kotlin.test.Test
@@ -10,8 +9,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class JsonRpcMessageTest {
-	private val json = KMCP.json
-
 	@Test
 	fun testCallToolRequestDeserialization() {
 		val input = """{

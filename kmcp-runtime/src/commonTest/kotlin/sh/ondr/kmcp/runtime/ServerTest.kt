@@ -6,7 +6,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.encodeToJsonElement
 import sh.ondr.kmcp.runtime.annotation.Tool
 import sh.ondr.kmcp.runtime.serialization.toJsonObject
-import sh.ondr.kmcp.runtime.server.Server
 import sh.ondr.kmcp.runtime.transport.TestTransport
 import sh.ondr.kmcp.schema.content.TextContent
 import sh.ondr.kmcp.schema.content.ToolContent
@@ -68,7 +67,7 @@ class ServerTest {
 
 			server.tools.values.map {
 				// for debugging
-				println(KMCP.json.encodeToJsonElement(it))
+				println(kmcpJson.encodeToJsonElement(it))
 			}
 
 			val editFileArgs =
@@ -87,6 +86,6 @@ class ServerTest {
 					arguments = editFileArgs.toJsonObject(),
 				)
 			val callToolResult = server.handleCallToolRequest(callToolParams)
-			println(KMCP.json.encodeToJsonElement(callToolResult))
+			println(kmcpJson.encodeToJsonElement(callToolResult))
 		}
 }

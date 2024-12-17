@@ -3,7 +3,7 @@ package sh.ondr.kmcp.runtime.tools
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
-import sh.ondr.kmcp.runtime.KMCP
+import sh.ondr.kmcp.runtime.kmcpJson
 import sh.ondr.kmcp.schema.content.ToolContent
 import sh.ondr.kmcp.schema.tools.CallToolResult
 
@@ -15,7 +15,7 @@ data class ToolHandler<T : @Serializable Any, R : ToolContent>(
 ) {
 	@Suppress("UNCHECKED_CAST")
 	fun call(params: JsonElement): CallToolResult {
-		val toolParams: Any = KMCP.json.decodeFromJsonElement(paramsSerializer, params)
+		val toolParams: Any = kmcpJson.decodeFromJsonElement(paramsSerializer, params)
 		val toolContent = function(toolParams as T)
 		return CallToolResult(
 			content = listOf(toolContent),
