@@ -6,6 +6,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
 import sh.ondr.kmcp.assertLinesMatch
+import sh.ondr.kmcp.client
 import sh.ondr.kmcp.logLines
 import sh.ondr.kmcp.runtime.Client
 import sh.ondr.kmcp.runtime.Server
@@ -14,6 +15,7 @@ import sh.ondr.kmcp.runtime.transport.TestTransport
 import sh.ondr.kmcp.schema.content.TextContent
 import sh.ondr.kmcp.schema.content.ToolContent
 import sh.ondr.kmcp.schema.tools.ListToolsRequest
+import sh.ondr.kmcp.server
 import kotlin.test.Test
 
 class ToolsTest {
@@ -51,11 +53,17 @@ class ToolsTest {
 					.withTool(User::greet)
 					.withTool(EmailSendParams::sendEmail)
 					.withTransport(serverTransport)
-					.withRawLogger { line -> log.add("SERVER $line") }
+					.withLogger { line -> log.server(line) }
 					.build()
 			server.start()
 
-			val client = Client(clientTransport, testDispatcher) { line -> log.add("CLIENT $line") }
+			val client =
+				Client.Builder()
+					.withTransport(clientTransport)
+					.withDispatcher(testDispatcher)
+					.withRawLogger { line -> log.client(line) }
+					.withClientInfo("TestClient", "1.0.0")
+					.build()
 			client.start()
 
 			// Perform initialization

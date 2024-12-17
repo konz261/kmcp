@@ -39,7 +39,7 @@ class Client private constructor(
 	private val clientCapabilities: ClientCapabilities,
 	private val rawLoggers: List<(String) -> Unit>,
 	coroutineContext: CoroutineContext,
-) : McpComponent(transport, basicRawLogger = rawLoggers.firstOrNull(), coroutineContext = coroutineContext) {
+) : McpComponent(transport, logger = rawLoggers.firstOrNull(), coroutineContext = coroutineContext) {
 	private var initialized = false
 
 	/**

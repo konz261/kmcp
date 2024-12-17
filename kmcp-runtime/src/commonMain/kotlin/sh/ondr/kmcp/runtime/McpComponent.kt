@@ -10,8 +10,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonElement
-import sh.ondr.kmcp.runtime.core.notImplemented
-import sh.ondr.kmcp.runtime.core.returnErrorResponse
 import sh.ondr.kmcp.runtime.serialization.serializeResult
 import sh.ondr.kmcp.runtime.serialization.serializeToString
 import sh.ondr.kmcp.runtime.serialization.toJsonRpcMessage
@@ -83,7 +81,7 @@ import kotlin.coroutines.CoroutineContext
  */
 abstract class McpComponent(
 	private val transport: Transport,
-	private val basicRawLogger: ((String) -> Unit)? = null,
+	private val logger: ((String) -> Unit)? = null,
 	coroutineContext: CoroutineContext = Dispatchers.Default,
 ) {
 	// -----------------------------------------------------
@@ -344,9 +342,9 @@ abstract class McpComponent(
 	// Logging Utilities
 	// -----------------------------------------------------
 
-	private fun logIncoming(line: String) = basicRawLogger?.invoke("INCOMING: $line")
+	private fun logIncoming(line: String) = logger?.invoke("INCOMING: $line")
 
-	private fun logOutgoing(line: String) = basicRawLogger?.invoke("OUTGOING: $line")
+	private fun logOutgoing(line: String) = logger?.invoke("OUTGOING: $line")
 
 	private fun logWarning(message: String) {
 		println("WARNING: $message")

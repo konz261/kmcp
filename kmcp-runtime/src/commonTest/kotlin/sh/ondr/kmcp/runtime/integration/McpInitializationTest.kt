@@ -7,11 +7,13 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import sh.ondr.kmcp.assertLinesMatch
+import sh.ondr.kmcp.client
 import sh.ondr.kmcp.logLines
 import sh.ondr.kmcp.runtime.Client
 import sh.ondr.kmcp.runtime.Server
 import sh.ondr.kmcp.runtime.transport.TestTransport
 import sh.ondr.kmcp.schema.core.PingRequest
+import sh.ondr.kmcp.server
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -28,12 +30,18 @@ class McpInitializationTest {
 				Server.Builder()
 					.withDispatcher(testDispatcher)
 					.withTransport(serverTransport)
-					.withRawLogger { line -> log.add("SERVER $line") }
+					.withLogger { line -> log.server(line) }
 					.build()
 
 			server.start()
 
-			val client = Client(clientTransport, testDispatcher) { line -> log.add("CLIENT $line") }
+			val client =
+				Client.Builder()
+					.withTransport(clientTransport)
+					.withDispatcher(testDispatcher)
+					.withRawLogger { line -> log.add("CLIENT $line") }
+					.withClientInfo("TestClient", "1.0.0")
+					.build()
 			client.start()
 
 			client.initialize()
@@ -71,11 +79,17 @@ class McpInitializationTest {
 				Server.Builder()
 					.withDispatcher(testDispatcher)
 					.withTransport(serverTransport)
-					.withRawLogger { line -> log.add("SERVER $line") }
+					.withLogger { line -> log.server(line) }
 					.build()
 			server.start()
 
-			val client = Client(clientTransport, testDispatcher) { line -> log.add("CLIENT $line") }
+			val client =
+				Client.Builder()
+					.withTransport(clientTransport)
+					.withDispatcher(testDispatcher)
+					.withRawLogger { line -> log.client(line) }
+					.withClientInfo("TestClient", "1.0.0")
+					.build()
 			client.start()
 
 			// First, do initialization dance
@@ -98,6 +112,7 @@ class McpInitializationTest {
 					clientOutgoing("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
 					serverIncoming("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
 					serverOutgoing("""{"jsonrpc":"2.0","id":"2","result":{}}""")
+					clientIncoming("""{"jsonrpc":"2.0","id":"2","result":{}}""")
 				}
 
 			assertLinesMatch(expected, log, "ping test")

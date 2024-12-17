@@ -86,3 +86,11 @@ class LogAssertionBuilder {
 
 	fun build() = expectedLines.toList()
 }
+
+fun MutableList<String>.client(line: String) {
+	add("CLIENT $line")
+}
+
+fun MutableList<String>.server(line: String) {
+	add("SERVER $line")
+}

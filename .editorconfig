@@ -5,6 +5,7 @@ indent_style = tab
 indent_size = 2
 ktlint_standard_max-line-length=disabled
 ktlint_standard_value-argument-comment=disabled
+ktlint_standard_value-parameter-comment=disabled
 
 [{kmcp-runtime/src/commonMain/kotlin/sh/ondr/kmcp/schema/core/Result.kt,kmcp-runtime/src/commonMain/kotlin/sh/ondr/kmcp/schema/core/JsonRpcNotification.kt}]
 ktlint_standard_property-naming=disabled

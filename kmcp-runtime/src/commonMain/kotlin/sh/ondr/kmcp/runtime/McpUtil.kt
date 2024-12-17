@@ -1,4 +1,4 @@
-package sh.ondr.kmcp.runtime.core
+package sh.ondr.kmcp.runtime
 
 import sh.ondr.kmcp.schema.core.JsonRpcError
 import sh.ondr.kmcp.schema.core.JsonRpcRequest
