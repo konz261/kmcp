@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import sh.ondr.kmcp.runtime.serialization.module
 
 const val JSON_RPC_VERSION = "2.0"
+const val MCP_VERSION = "2024-11-05"
 val kmcpJson =
 	Json {
 		encodeDefaults = true
