@@ -2,6 +2,7 @@ plugins {
 	alias(libs.plugins.kotlin.multiplatform)
 	alias(libs.plugins.kotlin.serialization)
 	alias(libs.plugins.maven.publish)
+	id("sh.ondr.kmcp") version "0.1.0"
 }
 
 kotlin {

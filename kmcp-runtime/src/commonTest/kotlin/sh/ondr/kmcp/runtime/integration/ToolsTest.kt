@@ -4,7 +4,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.Serializable
 import sh.ondr.kmcp.assertLinesMatch
 import sh.ondr.kmcp.client
 import sh.ondr.kmcp.logLines
@@ -18,6 +17,23 @@ import sh.ondr.kmcp.schema.tools.ListToolsRequest
 import sh.ondr.kmcp.server
 import kotlin.test.Test
 
+@Tool
+fun sendEmail(
+	recipients: List<String>,
+	title: String,
+	body: String?,
+): ToolContent {
+	return TextContent("Sending email to $recipients with title $title and body $body")
+}
+
+@Tool
+fun greet(
+	name: String,
+	age: Int,
+): ToolContent {
+	return TextContent("Hello, $name!")
+}
+
 class ToolsTest {
 	@OptIn(ExperimentalCoroutinesApi::class)
 	@Test
@@ -26,32 +42,12 @@ class ToolsTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			@Serializable
-			data class User(val name: String, val age: Int) {
-				@Tool
-				fun greet(): ToolContent {
-					return TextContent("Hello, $name!")
-				}
-			}
-
-			@Serializable
-			data class EmailSendParams(
-				val recipients: List<String>,
-				val title: String,
-				val body: String?,
-			) {
-				@Tool
-				fun sendEmail(): ToolContent {
-					return TextContent("Sending email to $recipients with title $title and body $body")
-				}
-			}
-
 			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
 			val server =
 				Server.Builder()
 					.withDispatcher(testDispatcher)
-					.withTool(User::greet)
-					.withTool(EmailSendParams::sendEmail)
+					.withTool(::greet)
+					.withTool(::sendEmail)
 					.withTransport(serverTransport)
 					.withLogger { line -> log.server(line) }
 					.build()
@@ -87,7 +83,6 @@ class ToolsTest {
 						"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name","age"]}},{"name":"sendEmail","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}]}}""",
 					)
 				}
-
 			assertLinesMatch(expected, log, "tools list test")
 		}
 }

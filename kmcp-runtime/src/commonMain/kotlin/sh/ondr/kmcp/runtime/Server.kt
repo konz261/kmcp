@@ -4,19 +4,15 @@ package sh.ondr.kmcp.runtime
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.serializer
 import sh.ondr.jsonschema.jsonSchema
 import sh.ondr.kmcp.runtime.prompts.PromptHandler
 import sh.ondr.kmcp.runtime.tools.GenericToolHandler
-import sh.ondr.kmcp.runtime.tools.ToolHandler
 import sh.ondr.kmcp.runtime.transport.Transport
 import sh.ondr.kmcp.schema.capabilities.Implementation
 import sh.ondr.kmcp.schema.capabilities.InitializeRequest.InitializeParams
 import sh.ondr.kmcp.schema.capabilities.InitializeResult
 import sh.ondr.kmcp.schema.capabilities.ServerCapabilities
-import sh.ondr.kmcp.schema.content.ToolContent
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest
 import sh.ondr.kmcp.schema.prompts.GetPromptResult
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest
@@ -139,13 +135,13 @@ class Server private constructor(
 
 	override suspend fun handleCallToolRequest(params: CallToolParams): CallToolResult {
 		val toolName = params.name
-		val handler = toolHandlers[toolName] ?: throw IllegalStateException("Handler for tool $toolName not found")
+		val handler = KMCP.toolHandlers[toolName] ?: throw IllegalStateException("Handler for tool $toolName not found")
 		val jsonArguments = JsonObject(params.arguments ?: emptyMap())
 		return handler.call(jsonArguments)
 	}
 
 	override suspend fun handleListToolsRequest(params: ListToolsParams?): ListToolsResult {
-		return ListToolsResult(tools.values.toList())
+		return ListToolsResult(tools = tools.keys.map { KMCP.toolInfos[it]!! })
 	}
 
 	/**
@@ -189,28 +185,17 @@ class Server private constructor(
 				builderTransport = transport
 			}
 
-		/**
-		 * Registers a tool function for the server.
-		 *
-		 * @param toolFunction A function reference from a serializable class T that returns a [ToolContent].
-		 * The function must be a Kotlin function reference, e.g., `MyClass::myFunction`.
-		 */
-		inline fun <reified T : @Serializable Any> withTool(noinline toolFunction: T.() -> ToolContent) =
+		fun withTool(toolFunction: KFunction<*>) =
 			apply {
-				require(toolFunction is KFunction<*>) {
-					"toolHandler must be a function reference, e.g., MyClass::myFunction"
-				}
 				require(toolFunction.name !in builderTools) {
 					"Tool with name ${toolFunction.name} already registered."
 				}
-				val name = toolFunction.name
-				builderTools[name] =
+				builderTools[toolFunction.name] =
 					ToolInfo(
-						name = name,
-						description = KMCP.toolDescriptions[name],
-						inputSchema = jsonSchema<T>(),
+						name = toolFunction.name,
+						description = KMCP.toolDescriptions[toolFunction.name],
+						inputSchema = jsonSchema<Unit>(),
 					)
-				builderHandlers[name] = ToolHandler(function = toolFunction, paramsSerializer = (T::class).serializer())
 			}
 
 		/**

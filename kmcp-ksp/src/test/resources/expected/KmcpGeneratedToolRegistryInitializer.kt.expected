@@ -4,6 +4,9 @@ import sh.ondr.kmcp.runtime.KMCP
 
 object KmcpGeneratedToolRegistryInitializer {
     init {
-        KMCP.toolDescriptions["greet"] = "This tool greets the user"
+        KMCP.toolInfos["greetUser"] = ToolInfo(...)
+        KMCP.toolHandlers["greetUser"] = ToolHandler(...)
+        KMCP.toolInfos["myTool"] = ToolInfo(...)
+        KMCP.toolHandlers["myTool"] = ToolHandler(...)
     }
 }

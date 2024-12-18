@@ -23,18 +23,32 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 		// Apply to Kotlin Multiplatform projects
 		target.pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
 			val kotlin = target.extensions.getByType(KotlinMultiplatformExtension::class.java)
-			// Add runtime to commonMain
+			// Add jsonschema and runtime to commonMain
 			kotlin.sourceSets.getByName("commonMain").dependencies {
-				implementation(runtimeDependency)
 				implementation(jsonSchemaDependency)
+				if (target.name != "kmcp-runtime") {
+					implementation(runtimeDependency)
+				}
 			}
 
-			// Add KSP dependency for all Kotlin targets
+			// Add KSP dependency for all Kotlin targets main compilations
 			kotlin.targets.configureEach { kotlinTarget ->
 				kotlinTarget.compilations.configureEach { compilation ->
 					if (compilation.name == "main" && kotlinTarget.name != "metadata") {
 						target.dependencies.add(
-							"ksp${kotlinTarget.name.replaceFirstChar { it.uppercase() } }",
+							"ksp${kotlinTarget.name.replaceFirstChar { it.uppercase() }}",
+							kspDependency,
+						)
+					}
+				}
+			}
+
+			// Add KSP dependency for all Kotlin targets test compilations
+			kotlin.targets.configureEach { kotlinTarget ->
+				kotlinTarget.compilations.configureEach { compilation ->
+					if (compilation.name == "test" && kotlinTarget.name != "metadata") {
+						target.dependencies.add(
+							"ksp${kotlinTarget.name.replaceFirstChar { it.uppercase() }}Test",
 							kspDependency,
 						)
 					}
@@ -45,14 +59,18 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 		// Apply to pure JVM projects
 		target.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
 			val kotlinJvm = target.extensions.getByType(org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension::class.java)
-			// Add runtime
+			// Add jsonschema and runtime to main
 			kotlinJvm.sourceSets.getByName("main").dependencies {
-				implementation(runtimeDependency)
 				implementation(jsonSchemaDependency)
+				if (target.name != "kmcp-runtime") {
+					implementation(runtimeDependency)
+				}
 			}
 
-			// Add KSP dependency for JVM
+			// Add KSP for main
 			target.dependencies.add("ksp", kspDependency)
+			// Add KSP for test
+			target.dependencies.add("kspTest", kspDependency)
 		}
 	}
 

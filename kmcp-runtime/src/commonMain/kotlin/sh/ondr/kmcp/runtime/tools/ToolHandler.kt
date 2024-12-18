@@ -2,19 +2,23 @@ package sh.ondr.kmcp.runtime.tools
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import sh.ondr.kmcp.runtime.kmcpJson
 import sh.ondr.kmcp.schema.content.ToolContent
 import sh.ondr.kmcp.schema.tools.CallToolResult
 
-typealias GenericToolHandler = ToolHandler<*>
+interface ToolHandler {
+	fun call(params: JsonObject): CallToolResult
+}
 
-data class ToolHandler<T : @Serializable Any>(
+typealias GenericToolHandler = TypedToolHandler<*>
+
+data class TypedToolHandler<T : @Serializable Any>(
 	val function: T.() -> ToolContent,
 	val paramsSerializer: KSerializer<T>,
-) {
+) : ToolHandler {
 	@Suppress("UNCHECKED_CAST")
-	fun call(params: JsonElement): CallToolResult {
+	override fun call(params: JsonObject): CallToolResult {
 		val toolParams: Any = kmcpJson.decodeFromJsonElement(paramsSerializer, params)
 		val toolContent = function(toolParams as T)
 		return CallToolResult(

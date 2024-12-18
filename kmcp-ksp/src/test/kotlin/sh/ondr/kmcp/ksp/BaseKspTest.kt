@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach
 import java.io.File
 import java.nio.file.Files
 
+// TODO fix
 abstract class BaseKspTest {
 	lateinit var projectDir: File
 
@@ -61,6 +62,16 @@ abstract class BaseKspTest {
 			    macosArm64()
 			    iosX64()
 			    iosArm64()
+					
+					sourceSets {
+						commonMain {
+							dependencies {
+								implementation("sh.ondr:kotlin-json-schema:0.1.0")
+							}
+						}
+					}
+					
+					
 			}
 			""".trimIndent(),
 		)

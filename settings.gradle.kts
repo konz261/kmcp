@@ -15,6 +15,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "kmcp"
 include("kmcp-compiler")
+include("kmcp-gradle")
 include("kmcp-ksp")
 include("kmcp-runtime")
-include("kmcp-gradle")
