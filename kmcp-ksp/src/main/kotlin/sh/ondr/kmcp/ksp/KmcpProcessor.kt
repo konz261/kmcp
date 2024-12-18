@@ -1,5 +1,6 @@
 package sh.ondr.kmcp.ksp
 
+import com.google.devtools.ksp.getVisibility
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
@@ -10,6 +11,8 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.Modifier
+import com.google.devtools.ksp.symbol.Visibility
 
 // TODO clean this up
 class KmcpProcessor(
@@ -85,21 +88,20 @@ class KmcpProcessor(
 		var errorsFound = false
 
 		// 1. Unique tool names
-		val duplicates = tools.groupBy { it.functionName }.filterValues { it.size > 1 }
-		if (duplicates.isNotEmpty()) {
-			duplicates.forEach { (name, toolsList) ->
+		tools.groupBy { it.functionName }
+			.filterValues { it.size > 1 }
+			.forEach { (name, toolsList) ->
 				val fqNames = toolsList.joinToString(", ") { it.fqName }
 				logger.error(
 					"KMCP error: Multiple @Tool functions share the name '$name'. " +
 						"Tool names must be unique. Conflicts: $fqNames",
 				)
+				errorsFound = true
 			}
-			errorsFound = true
-		}
 
 		// 2. Return type must be ToolContent
-		for (tool in tools) {
-			if (!tool.returnTypeFqn.endsWith("ToolContent")) {
+		tools.filter { !it.returnTypeFqn.endsWith("ToolContent") }
+			.forEach { tool ->
 				logger.error(
 					"KMCP error: @Tool function '${tool.functionName}' must return the ToolContent interface. " +
 						"Currently returns: ${tool.returnTypeReadable}. " +
@@ -107,44 +109,73 @@ class KmcpProcessor(
 				)
 				errorsFound = true
 			}
-		}
 
 		// 3. Parameter types must be supported
-		for (tool in tools) {
-			for (param in tool.params) {
-				val typeError = checkTypeSupported(param.ksType)
-				if (typeError != null) {
+		tools.forEach { tool ->
+			tool.params
+				.mapNotNull { param ->
+					val typeError = checkTypeSupported(param.ksType)
+					if (typeError != null) param to typeError else null
+				}
+				.forEach { (param, typeError) ->
 					logger.error(
-						"KMCP error: @Tool function '${tool.functionName}' has a parameter '${param.name}' of unsupported type '${param.readableType}':\n" +
-							"Reason: $typeError",
+						"KMCP error: @Tool function '${tool.functionName}' has a parameter '${param.name}' " +
+							"of unsupported type '${param.readableType}':\nReason: $typeError",
 					)
 					errorsFound = true
 				}
-			}
 		}
 
 		// 4. Limit non-required parameters
 		val nonRequiredLimit = 7
-		val exceedingNonRequired =
-			tools.filter {
-				it.params.count { p -> !p.isRequired } > nonRequiredLimit
+		tools.filter { it.params.count { p -> !p.isRequired } > nonRequiredLimit }
+			.forEach { tool ->
+				logger.error(
+					"KMCP error: @Tool function '${tool.functionName}' has more than $nonRequiredLimit non-required parameters. " +
+						"Please reduce optional/nullable/default parameters to $nonRequiredLimit or fewer.",
+				)
+				errorsFound = true
 			}
 
-		for (tool in exceedingNonRequired) {
-			logger.error(
-				"KMCP error: @Tool function '${tool.functionName}' has more than $nonRequiredLimit non-required parameters. " +
-					"Please reduce optional/nullable/default parameters to $nonRequiredLimit or fewer.",
-			)
-			errorsFound = true
-		}
-
 		// 5. Must be top-level function
-		for (tool in tools) {
-			val parentDecl = tool.ksFunction.parentDeclaration
-			if (parentDecl != null) {
+		tools.filter { it.ksFunction.parentDeclaration != null }
+			.forEach { tool ->
+				val parent = tool.ksFunction.parentDeclaration?.qualifiedName?.asString() ?: "unknown parent"
 				logger.error(
-					"KMCP error: @Tool function '${tool.functionName}' is defined inside a class or object (${parentDecl.qualifiedName?.asString()}). " +
+					"KMCP error: @Tool function '${tool.functionName}' is defined inside a class or object ($parent). " +
 						"@Tool functions must be top-level. Move '${tool.functionName}' to file scope.",
+				)
+				errorsFound = true
+			}
+
+		// 6. Must have no disallowed modifiers
+		val disallowedModifiers =
+			setOf(
+				Modifier.INLINE,
+				Modifier.PRIVATE,
+				Modifier.PROTECTED,
+				Modifier.INTERNAL,
+				Modifier.ABSTRACT,
+				Modifier.OPEN,
+				Modifier.SUSPEND,
+			)
+
+		tools.forEach { tool ->
+			val visibility = tool.ksFunction.getVisibility()
+			if (visibility != Visibility.PUBLIC) {
+				logger.error(
+					"KMCP error: @Tool function '${tool.functionName}' must be public. " +
+						"Current visibility: $visibility. " +
+						"Please ensure it's a top-level public function with no modifiers.",
+				)
+				errorsFound = true
+			}
+
+			val foundDisallowed = tool.ksFunction.modifiers.filter { it in disallowedModifiers }
+			if (foundDisallowed.isNotEmpty()) {
+				logger.error(
+					"KMCP error: @Tool function '${tool.functionName}' has disallowed modifiers: $foundDisallowed. " +
+						"Only a public, top-level, non-suspend, non-inline, and non-abstract/protected/private/internal function is allowed.",
 				)
 				errorsFound = true
 			}
