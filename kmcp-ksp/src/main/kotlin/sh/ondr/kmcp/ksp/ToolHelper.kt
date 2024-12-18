@@ -11,4 +11,5 @@ data class ToolHelper(
 	val returnTypeFqn: String,
 	val returnTypeReadable: String,
 	val originatingFiles: List<KSFile>,
+	var description: String? = null,
 )

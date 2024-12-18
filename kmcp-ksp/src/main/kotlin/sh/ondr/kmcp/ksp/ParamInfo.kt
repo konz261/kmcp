@@ -10,4 +10,5 @@ data class ParamInfo(
 	val isNullable: Boolean,
 	val hasDefault: Boolean,
 	val isRequired: Boolean,
+	var description: String? = null,
 )

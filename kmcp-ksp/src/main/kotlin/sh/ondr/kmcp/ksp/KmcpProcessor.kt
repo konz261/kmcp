@@ -11,6 +11,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 
+// TODO clean this up
 class KmcpProcessor(
 	private val codeGenerator: CodeGenerator,
 	private val logger: KSPLogger,
@@ -45,9 +46,29 @@ class KmcpProcessor(
 			return
 		}
 
+		// Parse docstrings first
+		for (tool in collectedFunctions) {
+			val docString = tool.ksFunction.docString
+			if (docString != null) {
+				val parameters = tool.params.map { it.name }
+				try {
+					val (mainDesc, paramDescriptions) = docString.parseDescription(parameters)
+					tool.description = mainDesc
+					for (p in tool.params) {
+						p.description = paramDescriptions[p.name]
+					}
+				} catch (e: IllegalArgumentException) {
+					logger.error(
+						"KMCP error when parsing KDoc for @Tool function '${tool.functionName}': ${e.message}",
+					)
+				}
+			}
+		}
+
 		val errorsFound = checkToolFunctions(collectedFunctions)
+
 		if (errorsFound) {
-			logger.error("Aborting code generation due to errors in @Tool-annotated functions.")
+			logger.error("KMCP Error: aborting code generation due to errors in @Tool-annotated functions.")
 			return
 		}
 
@@ -69,7 +90,7 @@ class KmcpProcessor(
 			duplicates.forEach { (name, toolsList) ->
 				val fqNames = toolsList.joinToString(", ") { it.fqName }
 				logger.error(
-					"Multiple @Tool functions share the name '$name'. " +
+					"KMCP error: Multiple @Tool functions share the name '$name'. " +
 						"Tool names must be unique. Conflicts: $fqNames",
 				)
 			}
@@ -80,7 +101,7 @@ class KmcpProcessor(
 		for (tool in tools) {
 			if (!tool.returnTypeFqn.endsWith("ToolContent")) {
 				logger.error(
-					"@Tool function '${tool.functionName}' must return the ToolContent interface. " +
+					"KMCP error: @Tool function '${tool.functionName}' must return the ToolContent interface. " +
 						"Currently returns: ${tool.returnTypeReadable}. " +
 						"Please change the return type to ToolContent.",
 				)
@@ -94,7 +115,7 @@ class KmcpProcessor(
 				val typeError = checkTypeSupported(param.ksType)
 				if (typeError != null) {
 					logger.error(
-						"@Tool function '${tool.functionName}' has a parameter '${param.name}' of unsupported type '${param.readableType}':\n" +
+						"KMCP error: @Tool function '${tool.functionName}' has a parameter '${param.name}' of unsupported type '${param.readableType}':\n" +
 							"Reason: $typeError",
 					)
 					errorsFound = true
@@ -111,7 +132,7 @@ class KmcpProcessor(
 
 		for (tool in exceedingNonRequired) {
 			logger.error(
-				"@Tool function '${tool.functionName}' has more than $nonRequiredLimit non-required parameters. " +
+				"KMCP error: @Tool function '${tool.functionName}' has more than $nonRequiredLimit non-required parameters. " +
 					"Please reduce optional/nullable/default parameters to $nonRequiredLimit or fewer.",
 			)
 			errorsFound = true
@@ -122,7 +143,7 @@ class KmcpProcessor(
 			val parentDecl = tool.ksFunction.parentDeclaration
 			if (parentDecl != null) {
 				logger.error(
-					"@Tool function '${tool.functionName}' is defined inside a class or object (${parentDecl.qualifiedName?.asString()}). " +
+					"KMCP error: @Tool function '${tool.functionName}' is defined inside a class or object (${parentDecl.qualifiedName?.asString()}). " +
 						"@Tool functions must be top-level. Move '${tool.functionName}' to file scope.",
 				)
 				errorsFound = true
@@ -310,7 +331,8 @@ class KmcpProcessor(
 					appendLine("        // Register '$toolName'")
 					appendLine("        val ${toolName}ToolInfo = ToolInfo(")
 					appendLine("            name = \"$toolName\",")
-					appendLine("            description = null,")
+					val toolDescription = if (helper.description != null) "\"${helper.description}\"" else "null"
+					appendLine("            description = $toolDescription,")
 					appendLine("            inputSchema = jsonSchema<$paramsClassName>()")
 					appendLine("        )")
 					appendLine("        KMCP.toolInfos[\"$toolName\"] = ${toolName}ToolInfo")

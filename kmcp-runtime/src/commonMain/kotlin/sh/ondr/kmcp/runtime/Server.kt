@@ -5,9 +5,7 @@ package sh.ondr.kmcp.runtime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.json.JsonObject
-import sh.ondr.jsonschema.jsonSchema
 import sh.ondr.kmcp.runtime.prompts.PromptHandler
-import sh.ondr.kmcp.runtime.tools.GenericToolHandler
 import sh.ondr.kmcp.runtime.transport.Transport
 import sh.ondr.kmcp.schema.capabilities.Implementation
 import sh.ondr.kmcp.schema.capabilities.InitializeRequest.InitializeParams
@@ -23,33 +21,32 @@ import sh.ondr.kmcp.schema.tools.CallToolRequest.CallToolParams
 import sh.ondr.kmcp.schema.tools.CallToolResult
 import sh.ondr.kmcp.schema.tools.ListToolsRequest.ListToolsParams
 import sh.ondr.kmcp.schema.tools.ListToolsResult
-import sh.ondr.kmcp.schema.tools.ToolInfo
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KFunction
 
 /**
- * A server implementation that communicates using the MCP protocol.
+ * A Model Context Protocol (MCP) server implementation that handles
+ * MCP requests from a connected client via a specified [Transport].
  *
- * The [Server] is created via its [Builder]. Once constructed, call [start] to begin processing.
+ * Tools can be added at build time via [Builder.withTool], and can also be added or removed
+ * dynamically at runtime using [addTool]/[removeTool].
  *
- * Example usage:
- * ```
+ * ### Example Usage
+ *
+ * ```kotlin
  * val server = Server.Builder()
  *     .withTransport(myTransport)
- *     .withTool(MyParams::myToolFunction)
+ *     .withTool(::myToolFunction)
  *     .withPrompt(
  *         name = "code_review",
- *         description = "Analyze code quality and suggest improvements",
- *         arguments = listOf(PromptArgument(name = "code", required = true)),
+ *         description = "Analyze code quality",
+ *         arguments = listOf(PromptArgument(name = "code", required = true))
  *     ) { args ->
- *         val code = args?.get("code") ?: throw IllegalArgumentException("Missing 'code' argument")
+ *         val code = args?.get("code") ?: error("Missing 'code' argument")
  *         GetPromptResult(
  *             description = "Code review prompt",
  *             messages = listOf(
- *                 PromptMessage(
- *                     role = Role.user,
- *                     content = TextContent("Please review this code:\n$code")
- *                 )
+ *                 // ... build PromptMessage list ...
  *             )
  *         )
  *     }
@@ -59,51 +56,48 @@ import kotlin.reflect.KFunction
  *
  * server.start()
  * ```
- *
- * You can dynamically add or remove tools at runtime using [addTool] and [removeTool].
- * Similarly, prompts can be managed during the server's lifecycle to reflect current capabilities.
  */
 class Server private constructor(
 	private val transport: Transport,
-	private val tools: MutableMap<String, ToolInfo>,
-	private val toolHandlers: MutableMap<String, GenericToolHandler>,
+	private val tools: MutableList<String>,
 	private val prompts: MutableMap<String, PromptInfo>,
 	private val promptHandlers: MutableMap<String, PromptHandler>,
 	private val logger: ((String) -> Unit)?,
-	private val dispatcher: CoroutineContext, // For testing
+	private val dispatcher: CoroutineContext,
 	private val serverName: String,
 	private val serverVersion: String,
 ) : McpComponent(
-		transport,
+		transport = transport,
 		logger = logger,
 		coroutineContext = dispatcher,
 	) {
 	/**
-	 * Adds a new tool and its corresponding handler at runtime.
+	 * Dynamically adds a new tool to the server at runtime.
 	 *
-	 * @param tool The [ToolInfo] definition containing its name, description, and input schema.
-	 * @param handler The [GenericToolHandler] that implements the tool's logic.
+	 * @param tool The @Tool-annotated function reference.
+	 * @return `true` if the tool was added, `false` if it was already present.
 	 */
-	fun addTool(
-		tool: ToolInfo,
-		handler: GenericToolHandler,
-	) {
-		tools[tool.name] = tool
-		toolHandlers[tool.name] = handler
+	fun addTool(tool: KFunction<*>): Boolean {
+		return if (tool.name !in tools) {
+			tools.add(tool.name)
+			true
+		} else {
+			false
+		}
 	}
 
 	/**
-	 * Removes a previously added tool.
+	 * Dynamically removes a previously added tool by its @Tool-annotated function reference.
 	 *
-	 * @param tool The [ToolInfo] to remove.
+	 * @param tool The @Tool-annotated function reference that was previously added.
+	 * @return `true` if the tool was removed, `false` if it was not found.
 	 */
-	fun removeTool(tool: ToolInfo) {
-		tools.remove(tool.name)
-		toolHandlers.remove(tool.name)
+	fun removeTool(tool: KFunction<*>): Boolean {
+		return tools.remove(tool.name)
 	}
 
 	// -----------------------------------------------------
-	// Overridden request handlers for MCP operations
+	// Overridden Request Handlers for MCP Operations
 	// -----------------------------------------------------
 
 	override suspend fun handleInitializeRequest(params: InitializeParams): InitializeResult {
@@ -115,13 +109,17 @@ class Server private constructor(
 	}
 
 	override suspend fun handleListPromptsRequest(params: ListPromptsRequest.ListPromptsParams?): ListPromptsResult {
-		// Just return all prompts
 		return ListPromptsResult(prompts = prompts.values.toList())
 	}
 
 	override suspend fun handleGetPromptRequest(params: GetPromptRequest.GetPromptParams): GetPromptResult {
-		val prompt = prompts[params.name] ?: throw IllegalArgumentException("Prompt not found: ${params.name}")
-		val handler = promptHandlers[params.name] ?: throw IllegalStateException("Handler for prompt ${params.name} not found")
+		val prompt =
+			prompts[params.name]
+				?: throw IllegalArgumentException("Prompt not found: ${params.name}")
+
+		val handler =
+			promptHandlers[params.name]
+				?: throw IllegalStateException("Handler for prompt ${params.name} not found")
 
 		// Validate required arguments
 		prompt.arguments?.forEach { arg ->
@@ -135,40 +133,44 @@ class Server private constructor(
 
 	override suspend fun handleCallToolRequest(params: CallToolParams): CallToolResult {
 		val toolName = params.name
-		val handler = KMCP.toolHandlers[toolName] ?: throw IllegalStateException("Handler for tool $toolName not found")
+		val handler =
+			KMCP.toolHandlers[toolName]
+				?: throw IllegalStateException("Handler for tool $toolName not found")
 		val jsonArguments = JsonObject(params.arguments ?: emptyMap())
 		return handler.call(jsonArguments)
 	}
 
 	override suspend fun handleListToolsRequest(params: ListToolsParams?): ListToolsResult {
-		return ListToolsResult(tools = tools.keys.map { KMCP.toolInfos[it]!! })
+		// Map each tool name to its ToolInfo from KMCP
+		val toolInfos =
+			tools.map { name ->
+				KMCP.toolInfos[name]
+					?: throw IllegalStateException("ToolInfo not found for tool: $name")
+			}
+		return ListToolsResult(tools = toolInfos)
 	}
 
 	/**
-	 * Builder for creating a [Server] instance.
+	 * Builder for constructing a [Server] instance.
 	 *
-	 * Usage:
-	 * ```
+	 * All configuration is done via fluent API calls, and once [build] is called,
+	 * you get a fully configured Server ready to be started with [Server.start].
+	 *
+	 * Example:
+	 * ```kotlin
 	 * val server = Server.Builder()
 	 *     .withTransport(myTransport)
-	 *     .withTool(MyParams::myToolFunction)
+	 *     .withTool(::myToolFunction)
+	 *     .withPrompt("myPrompt", "A demo prompt") { args -> ... }
 	 *     .withServerInfo("MyServer", "1.2.3")
+	 *     .withLogger { line -> println(line) }
 	 *     .build()
 	 * ```
 	 */
 	class Builder {
-		@PublishedApi
-		internal var builderTools = mutableMapOf<String, ToolInfo>()
-
-		@PublishedApi
-		internal val builderHandlers = mutableMapOf<String, GenericToolHandler>()
-
-		@PublishedApi
-		internal val builderPrompts = mutableMapOf<String, PromptInfo>()
-
-		@PublishedApi
-		internal val builderPromptHandlers = mutableMapOf<String, PromptHandler>()
-
+		private val builderTools = mutableSetOf<String>()
+		private val builderPrompts = mutableMapOf<String, PromptInfo>()
+		private val builderPromptHandlers = mutableMapOf<String, PromptHandler>()
 		private var builderTransport: Transport? = null
 		private var builderLogger: ((String) -> Unit)? = null
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
@@ -177,33 +179,34 @@ class Server private constructor(
 		private var used = false
 
 		/**
-		 * Sets the [Transport] to be used by the server.
-		 * This is mandatory and must be called before [build].
+		 * Sets the [Transport] used by the server to communicate with clients.
+		 * This must be called before [build], or an error is thrown.
 		 */
 		fun withTransport(transport: Transport) =
 			apply {
 				builderTransport = transport
 			}
 
+		/**
+		 * Registers a tool by referencing its @Tool-annotated function.
+		 *
+		 * The function name is used as the tool's unique identifier.
+		 */
 		fun withTool(toolFunction: KFunction<*>) =
 			apply {
 				require(toolFunction.name !in builderTools) {
 					"Tool with name ${toolFunction.name} already registered."
 				}
-				builderTools[toolFunction.name] =
-					ToolInfo(
-						name = toolFunction.name,
-						description = KMCP.toolDescriptions[toolFunction.name],
-						inputSchema = jsonSchema<Unit>(),
-					)
+				builderTools.add(toolFunction.name)
 			}
 
 		/**
-		 * Registers a prompt.
+		 * Registers a prompt with the server.
+		 *
 		 * @param name Unique name for the prompt.
-		 * @param description Optional description.
-		 * @param arguments Optional list of arguments.
-		 * @param generate A lambda that takes arguments and returns a GetPromptResult.
+		 * @param description Optional human-readable description.
+		 * @param arguments Optional list of [PromptArgument] defining the prompt's expected inputs.
+		 * @param generate A lambda that, given arguments, returns a [GetPromptResult].
 		 */
 		fun withPrompt(
 			name: String,
@@ -211,14 +214,17 @@ class Server private constructor(
 			arguments: List<PromptArgument>? = null,
 			generate: (Map<String, String>?) -> GetPromptResult,
 		) = apply {
-			require(name !in builderPrompts) { "Prompt with name $name already registered." }
+			require(name !in builderPrompts) {
+				"Prompt with name $name already registered."
+			}
 			builderPrompts[name] = PromptInfo(name, description, arguments)
 			builderPromptHandlers[name] = PromptHandler(generate)
 		}
 
 		/**
-		 * Sets a coroutine dispatcher or context for the server's internal coroutines.
-		 * Defaults to [Dispatchers.Default].
+		 * Sets the coroutine context (or dispatcher) for the server's internal coroutines.
+		 *
+		 * Defaults to [Dispatchers.Default] if not set.
 		 */
 		fun withDispatcher(dispatcher: CoroutineContext) =
 			apply {
@@ -226,7 +232,9 @@ class Server private constructor(
 			}
 
 		/**
-		 * Adds a logger for incoming/outgoing messages.
+		 * Adds a logger callback for incoming/outgoing messages.
+		 *
+		 * Useful for debugging or auditing. If not set, no logging occurs.
 		 */
 		fun withLogger(logger: (String) -> Unit) =
 			apply {
@@ -234,9 +242,9 @@ class Server private constructor(
 			}
 
 		/**
-		 * Sets the server's name and version, which are returned during initialization.
+		 * Sets the server's name and version, reported in the `initialize` response.
 		 *
-		 * If not set, defaults to "TestServer" and "1.0.0".
+		 * Defaults to "TestServer" and "1.0.0" if not provided.
 		 */
 		fun withServerInfo(
 			name: String,
@@ -249,17 +257,16 @@ class Server private constructor(
 		/**
 		 * Builds the [Server] instance.
 		 *
-		 * @throws IllegalStateException if transport was not set before building
-		 * @throws IllegalStateException if this builder is reused after building
+		 * @throws IllegalStateException if called more than once or if a required field is missing.
 		 */
 		fun build(): Server {
 			check(!used) { "This Builder has already been used." }
 			used = true
 
+			val transport = builderTransport ?: error("Transport must be set before building.")
 			return Server(
-				transport = builderTransport ?: error("Transport must be set via withTransport before building."),
-				tools = builderTools.toMutableMap(),
-				toolHandlers = builderHandlers.toMutableMap(),
+				transport = transport,
+				tools = builderTools.toMutableList(),
 				prompts = builderPrompts.toMutableMap(),
 				promptHandlers = builderPromptHandlers.toMutableMap(),
 				logger = builderLogger,

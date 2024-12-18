@@ -26,12 +26,15 @@ fun sendEmail(
 	return TextContent("Sending email to $recipients with title $title and body $body")
 }
 
+/**
+ * This function greets the user
+ */
 @Tool
 fun greet(
 	name: String,
-	age: Int,
+	age: Double,
 ): ToolContent {
-	return TextContent("Hello, $name!")
+	return TextContent("Helloooooo, $name!")
 }
 
 class ToolsTest {
@@ -77,10 +80,10 @@ class ToolsTest {
 					clientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
 					serverIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
 					serverOutgoing(
-						"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name","age"]}},{"name":"sendEmail","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}]}}""",
+						"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"This function greets the user","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name","age"]}},{"name":"sendEmail","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}]}}""",
 					)
 					clientIncoming(
-						"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name","age"]}},{"name":"sendEmail","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}]}}""",
+						"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"This function greets the user","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name","age"]}},{"name":"sendEmail","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}]}}""",
 					)
 				}
 			assertLinesMatch(expected, log, "tools list test")

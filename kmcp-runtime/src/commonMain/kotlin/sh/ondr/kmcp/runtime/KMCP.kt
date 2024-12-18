@@ -19,5 +19,4 @@ val kmcpJson =
 object KMCP {
 	val toolInfos = mutableMapOf<String, ToolInfo>()
 	val toolHandlers = mutableMapOf<String, ToolHandler>()
-	val toolDescriptions = mutableMapOf<String, String>()
 }
