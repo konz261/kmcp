@@ -189,8 +189,6 @@ class Server private constructor(
 
 		/**
 		 * Registers a tool by referencing its @Tool-annotated function.
-		 *
-		 * The function name is used as the tool's unique identifier.
 		 */
 		fun withTool(toolFunction: KFunction<*>) =
 			apply {
@@ -198,6 +196,14 @@ class Server private constructor(
 					"Tool with name ${toolFunction.name} already registered."
 				}
 				builderTools.add(toolFunction.name)
+			}
+
+		/**
+		 * Registers tools by referencing their @Tool-annotated functions.
+		 */
+		fun withTools(vararg toolFunctions: KFunction<*>) =
+			apply {
+				toolFunctions.forEach { withTool(it) }
 			}
 
 		/**
