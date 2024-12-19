@@ -10,6 +10,7 @@ import sh.ondr.kmcp.logLines
 import sh.ondr.kmcp.runtime.Client
 import sh.ondr.kmcp.runtime.Server
 import sh.ondr.kmcp.runtime.annotation.Prompt
+import sh.ondr.kmcp.runtime.prompts.buildPrompt
 import sh.ondr.kmcp.runtime.serialization.deserializeResult
 import sh.ondr.kmcp.runtime.transport.TestTransport
 import sh.ondr.kmcp.schema.content.TextContent
@@ -18,7 +19,6 @@ import sh.ondr.kmcp.schema.prompts.GetPromptRequest
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest.GetPromptParams
 import sh.ondr.kmcp.schema.prompts.GetPromptResult
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest
-import sh.ondr.kmcp.schema.prompts.PromptMessage
 import sh.ondr.kmcp.server
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,17 +28,10 @@ import kotlin.test.assertNotNull
  * This function prompts the user to review some code
  */
 @Prompt
-fun codeReviewPrompt(code: String): GetPromptResult {
-	return GetPromptResult(
-		description = "Code review prompt",
-		messages = listOf(
-			PromptMessage(
-				role = Role.USER,
-				content = TextContent("Please review the code: $code"),
-			),
-		),
-	)
-}
+fun codeReviewPrompt(code: String) =
+	buildPrompt("Code review prompt") {
+		user { "Please review the code: $code" }
+	}
 
 class PromptsTest {
 	@OptIn(ExperimentalCoroutinesApi::class)
