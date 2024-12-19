@@ -62,17 +62,39 @@ private fun KmcpProcessor.generatePromptHandlersFile() {
 		appendLine("import sh.ondr.kmcp.runtime.kmcpJson")
 		appendLine("import sh.ondr.kmcp.schema.prompts.GetPromptResult")
 		appendLine("import sh.ondr.kmcp.runtime.prompts.PromptHandler")
+		appendLine("import sh.ondr.kmcp.runtime.error.MissingRequiredArgumentException")
+		appendLine("import sh.ondr.kmcp.runtime.error.UnknownArgumentException")
 		appendLine()
 
 		for (helper in collectedPrompts) {
 			val handlerClassName = "KmcpGenerated${helper.functionName.replaceFirstChar { it.uppercaseChar() }}PromptHandler"
 			val paramsClassName = "KmcpGenerated${helper.functionName.replaceFirstChar { it.uppercaseChar() }}PromptParams"
 
+			// Gather parameter names
+			val paramNames = helper.params.map { it.name }.joinToString { "\"$it\"" }
+
 			appendLine("class $handlerClassName : PromptHandler {")
+			appendLine("    private val knownParams = setOf($paramNames)")
+			appendLine()
 			appendLine("    override fun call(params: JsonObject): GetPromptResult {")
+			appendLine("        val unknownKeys = params.keys - knownParams")
+			appendLine("        if (unknownKeys.isNotEmpty()) {")
+			appendLine(
+				"            throw UnknownArgumentException(\"Unknown argument '\${unknownKeys.first()}' for prompt '${helper.functionName}'\")",
+			)
+			appendLine("        }")
+			appendLine()
+			val requiredParams = helper.params.filter { it.isRequired }.map { it.name }
+			if (requiredParams.isNotEmpty()) {
+				appendLine("        // Check required parameters")
+				for (reqParam in requiredParams) {
+					appendLine("        if (!params.containsKey(\"$reqParam\")) {")
+					appendLine("            throw MissingRequiredArgumentException(\"Missing required argument '$reqParam'\")")
+					appendLine("        }")
+				}
+			}
+			appendLine()
 			appendLine("        val obj = kmcpJson.decodeFromJsonElement($paramsClassName.serializer(), params)")
-			// Like tools, we must handle optional params. Prompts might always be strings, but can have defaults.
-			// We'll reuse similar logic to tools to handle defaults:
 			appendLine("        return ${generatePromptInvocationCode(helper, 2)}")
 			appendLine("    }")
 			appendLine("}")

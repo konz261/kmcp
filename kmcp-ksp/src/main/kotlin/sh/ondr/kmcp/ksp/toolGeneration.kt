@@ -63,14 +63,39 @@ private fun KmcpProcessor.generateToolHandlersFile() {
 		appendLine("import sh.ondr.kmcp.schema.tools.CallToolResult")
 		appendLine("import sh.ondr.kmcp.schema.content.ToolContent")
 		appendLine("import sh.ondr.kmcp.runtime.tools.ToolHandler")
+		appendLine("import sh.ondr.kmcp.runtime.error.MissingRequiredArgumentException")
+		appendLine("import sh.ondr.kmcp.runtime.error.UnknownArgumentException")
 		appendLine()
 
 		for (helper in collectedTools) {
 			val handlerClassName = "KmcpGenerated${helper.functionName.replaceFirstChar { it.uppercaseChar() }}ToolHandler"
 			val paramsClassName = "KmcpGenerated${helper.functionName.replaceFirstChar { it.uppercaseChar() }}ToolParams"
 
+			// Gather parameter names
+			val paramNames = helper.params.map { it.name }.joinToString { "\"$it\"" }
+
 			appendLine("class $handlerClassName : ToolHandler {")
+			appendLine("    private val knownParams = setOf($paramNames)")
+			appendLine()
 			appendLine("    override fun call(params: JsonObject): CallToolResult {")
+			appendLine("        val unknownKeys = params.keys - knownParams")
+			appendLine("        if (unknownKeys.isNotEmpty()) {")
+			appendLine(
+				"            throw UnknownArgumentException(\"Unknown argument '\${unknownKeys.first()}' for tool '${helper.functionName}'\")",
+			)
+			appendLine("        }")
+			appendLine()
+			// Check required parameters
+			val requiredParams = helper.params.filter { it.isRequired }.map { it.name }
+			if (requiredParams.isNotEmpty()) {
+				appendLine("        // Check required parameters")
+				for (reqParam in requiredParams) {
+					appendLine("        if (!params.containsKey(\"$reqParam\")) {")
+					appendLine("            throw MissingRequiredArgumentException(\"Missing required argument '$reqParam'\")")
+					appendLine("        }")
+				}
+			}
+			appendLine()
 			appendLine("        val obj = kmcpJson.decodeFromJsonElement($paramsClassName.serializer(), params)")
 			appendLine("        val result = ${generateInvocationCode(helper, 2)}")
 			appendLine("        return CallToolResult(listOf(result))")

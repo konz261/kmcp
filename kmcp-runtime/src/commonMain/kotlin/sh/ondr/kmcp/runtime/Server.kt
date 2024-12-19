@@ -6,11 +6,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import sh.ondr.kmcp.runtime.error.MethodNotFoundException
 import sh.ondr.kmcp.runtime.transport.Transport
 import sh.ondr.kmcp.schema.capabilities.Implementation
 import sh.ondr.kmcp.schema.capabilities.InitializeRequest.InitializeParams
 import sh.ondr.kmcp.schema.capabilities.InitializeResult
+import sh.ondr.kmcp.schema.capabilities.PromptsCapability
 import sh.ondr.kmcp.schema.capabilities.ServerCapabilities
+import sh.ondr.kmcp.schema.capabilities.ToolsCapability
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest.GetPromptParams
 import sh.ondr.kmcp.schema.prompts.GetPromptResult
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest.ListPromptsParams
@@ -98,7 +101,10 @@ class Server private constructor(
 	override suspend fun handleInitializeRequest(params: InitializeParams): InitializeResult {
 		return InitializeResult(
 			protocolVersion = MCP_VERSION,
-			capabilities = ServerCapabilities(),
+			capabilities = ServerCapabilities(
+				tools = if (tools.isNotEmpty()) ToolsCapability() else null,
+				prompts = if (prompts.isNotEmpty()) PromptsCapability() else null,
+			),
 			serverInfo = Implementation(serverName, serverVersion),
 		)
 	}
@@ -113,7 +119,7 @@ class Server private constructor(
 
 	override suspend fun handleGetPromptRequest(params: GetPromptParams): GetPromptResult {
 		val promptName = params.name
-		val handler = KMCP.promptHandlers[promptName] ?: throw IllegalStateException("Handler for prompt $promptName not found")
+		val handler = KMCP.promptHandlers[promptName] ?: throw MethodNotFoundException("Handler for prompt $promptName not found")
 		val jsonArgs = params
 			.arguments
 			?.mapValues { JsonPrimitive(it.value) }

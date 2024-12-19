@@ -47,7 +47,6 @@ class KmcpProcessor(
 	override fun finish() {
 		if (collectedPrompts.isNotEmpty()) {
 			generatePromptFiles()
-			logger.warn("collected prompts: $collectedPrompts")
 		}
 
 		if (collectedTools.isNotEmpty()) {

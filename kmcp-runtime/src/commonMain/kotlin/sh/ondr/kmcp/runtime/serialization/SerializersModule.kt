@@ -29,36 +29,35 @@ import sh.ondr.kmcp.schema.tools.CallToolRequest
 import sh.ondr.kmcp.schema.tools.ListToolsRequest
 import sh.ondr.kmcp.schema.tools.ToolListChangedNotification
 
-val module =
-	SerializersModule {
-		// Register all known request subclasses
-		polymorphic(JsonRpcRequest::class) {
-			subclass(CallToolRequest::class)
-			subclass(GetPromptRequest::class)
-			subclass(InitializeRequest::class)
-			subclass(PingRequest::class)
-			subclass(ListPromptsRequest::class)
-			subclass(ListResourcesRequest::class)
-			subclass(ReadResourceRequest::class)
-			subclass(SubscribeRequest::class)
-			subclass(UnsubscribeRequest::class)
-			subclass(ListToolsRequest::class)
-			subclass(CompleteRequest::class)
-			subclass(CreateMessageRequest::class)
-			subclass(SetLevelRequest::class)
-			subclass(ListRootsRequest::class)
-		}
-
-		// Register all known notification subclasses
-		polymorphic(JsonRpcNotification::class) {
-			subclass(CancelledNotification::class)
-			subclass(InitializedNotification::class)
-			subclass(ProgressNotification::class)
-			subclass(ResourceListChangedNotification::class)
-			subclass(ResourceUpdatedNotification::class)
-			subclass(PromptListChangedNotification::class)
-			subclass(ToolListChangedNotification::class)
-			subclass(LoggingMessageNotification::class)
-			subclass(RootsListChangedNotification::class)
-		}
+val kmcpSerializersModule = SerializersModule {
+	// Register all known request subclasses
+	polymorphic(JsonRpcRequest::class) {
+		subclass(CallToolRequest::class)
+		subclass(GetPromptRequest::class)
+		subclass(InitializeRequest::class)
+		subclass(PingRequest::class)
+		subclass(ListPromptsRequest::class)
+		subclass(ListResourcesRequest::class)
+		subclass(ReadResourceRequest::class)
+		subclass(SubscribeRequest::class)
+		subclass(UnsubscribeRequest::class)
+		subclass(ListToolsRequest::class)
+		subclass(CompleteRequest::class)
+		subclass(CreateMessageRequest::class)
+		subclass(SetLevelRequest::class)
+		subclass(ListRootsRequest::class)
 	}
+
+	// Register all known notification subclasses
+	polymorphic(JsonRpcNotification::class) {
+		subclass(CancelledNotification::class)
+		subclass(InitializedNotification::class)
+		subclass(ProgressNotification::class)
+		subclass(ResourceListChangedNotification::class)
+		subclass(ResourceUpdatedNotification::class)
+		subclass(PromptListChangedNotification::class)
+		subclass(ToolListChangedNotification::class)
+		subclass(LoggingMessageNotification::class)
+		subclass(RootsListChangedNotification::class)
+	}
+}

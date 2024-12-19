@@ -2,7 +2,7 @@ package sh.ondr.kmcp.runtime
 
 import kotlinx.serialization.json.Json
 import sh.ondr.kmcp.runtime.prompts.PromptHandler
-import sh.ondr.kmcp.runtime.serialization.module
+import sh.ondr.kmcp.runtime.serialization.kmcpSerializersModule
 import sh.ondr.kmcp.runtime.tools.ToolHandler
 import sh.ondr.kmcp.schema.prompts.PromptInfo
 import sh.ondr.kmcp.schema.tools.ToolInfo
@@ -14,7 +14,7 @@ val kmcpJson = Json {
 	explicitNulls = false
 	isLenient = true
 	classDiscriminator = "method"
-	serializersModule = module
+	serializersModule = kmcpSerializersModule
 }
 
 object KMCP {

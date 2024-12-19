@@ -9,7 +9,15 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import sh.ondr.kmcp.runtime.error.MethodNotFoundException
+import sh.ondr.kmcp.runtime.error.MissingRequiredArgumentException
+import sh.ondr.kmcp.runtime.error.UnknownArgumentException
+import sh.ondr.kmcp.runtime.error.determineErrorResponse
 import sh.ondr.kmcp.runtime.serialization.serializeResult
 import sh.ondr.kmcp.runtime.serialization.serializeToString
 import sh.ondr.kmcp.runtime.serialization.toJsonRpcMessage
@@ -25,6 +33,7 @@ import sh.ondr.kmcp.schema.completion.CompleteResult
 import sh.ondr.kmcp.schema.core.CancelledNotification
 import sh.ondr.kmcp.schema.core.CancelledNotification.CancelledParams
 import sh.ondr.kmcp.schema.core.EmptyResult
+import sh.ondr.kmcp.schema.core.JsonRpcError
 import sh.ondr.kmcp.schema.core.JsonRpcErrorCodes
 import sh.ondr.kmcp.schema.core.JsonRpcNotification
 import sh.ondr.kmcp.schema.core.JsonRpcRequest
@@ -72,7 +81,6 @@ import sh.ondr.kmcp.schema.tools.ListToolsRequest
 import sh.ondr.kmcp.schema.tools.ListToolsRequest.ListToolsParams
 import sh.ondr.kmcp.schema.tools.ListToolsResult
 import sh.ondr.kmcp.schema.tools.ToolListChangedNotification
-import kotlin.collections.iterator
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -118,7 +126,6 @@ abstract class McpComponent(
 	suspend fun sendRequest(builder: (id: String) -> JsonRpcRequest): JsonRpcResponse {
 		val requestId = nextRequestId.getAndIncrement().toString()
 		val deferred = CompletableDeferred<JsonRpcResponse>()
-
 		pendingRequestsMutex.withLock {
 			pendingRequests[requestId] = deferred
 		}
@@ -159,7 +166,7 @@ abstract class McpComponent(
 	// Abstract Handlers for Requests (To be Overridden)
 	// -----------------------------------------------------
 
-	// Has default implementation
+	// Default implementations or notImplemented() placeholders
 	open suspend fun handlePingRequest(params: PingParams?): EmptyResult = EmptyResult()
 
 	open suspend fun handleInitializeRequest(params: InitializeParams): InitializeResult = notImplemented()
@@ -221,35 +228,40 @@ abstract class McpComponent(
 	 */
 	protected suspend fun handleRequest(request: JsonRpcRequest): JsonRpcResponse =
 		try {
-			val jsonResult: JsonElement? =
-				when (request) {
-					is InitializeRequest -> serializeResult(handleInitializeRequest(request.params))
-					is PingRequest -> serializeResult(handlePingRequest(request.params))
-					is CallToolRequest -> serializeResult(handleCallToolRequest(request.params))
-					is ListToolsRequest -> serializeResult(handleListToolsRequest(request.params))
-					is CreateMessageRequest -> serializeResult(handleCreateMessageRequest(request.params))
-					is ListRootsRequest -> serializeResult(handleListRootsRequest())
-					is ListResourceTemplatesRequest -> serializeResult(handleListResourceTemplatesRequest(request.params))
-					is ListResourcesRequest -> serializeResult(handleListResourcesRequest(request.params))
-					is ReadResourceRequest -> serializeResult(handleReadResourceRequest(request.params))
-					is SubscribeRequest -> serializeResult(handleSubscribeRequest(request.params))
-					is UnsubscribeRequest -> serializeResult(handleUnsubscribeRequest(request.params))
-					is GetPromptRequest -> serializeResult(handleGetPromptRequest(request.params))
-					is ListPromptsRequest -> serializeResult(handleListPromptsRequest(request.params))
-					is SetLevelRequest -> serializeResult(handleSetLevelRequest(request.params))
-					is CompleteRequest -> serializeResult(handleCompleteRequest(request.params))
-					else -> null // Unknown request => method not found
-				}
+			val jsonResult: JsonElement? = when (request) {
+				is InitializeRequest -> serializeResult(handleInitializeRequest(request.params))
+				is PingRequest -> serializeResult(handlePingRequest(request.params))
+				is CallToolRequest -> serializeResult(handleCallToolRequest(request.params))
+				is ListToolsRequest -> serializeResult(handleListToolsRequest(request.params))
+				is CreateMessageRequest -> serializeResult(handleCreateMessageRequest(request.params))
+				is ListRootsRequest -> serializeResult(handleListRootsRequest())
+				is ListResourceTemplatesRequest -> serializeResult(handleListResourceTemplatesRequest(request.params))
+				is ListResourcesRequest -> serializeResult(handleListResourcesRequest(request.params))
+				is ReadResourceRequest -> serializeResult(handleReadResourceRequest(request.params))
+				is SubscribeRequest -> serializeResult(handleSubscribeRequest(request.params))
+				is UnsubscribeRequest -> serializeResult(handleUnsubscribeRequest(request.params))
+				is GetPromptRequest -> serializeResult(handleGetPromptRequest(request.params))
+				is ListPromptsRequest -> serializeResult(handleListPromptsRequest(request.params))
+				is SetLevelRequest -> serializeResult(handleSetLevelRequest(request.params))
+				is CompleteRequest -> serializeResult(handleCompleteRequest(request.params))
+				else -> null // Unknown request => method not found
+			}
 
 			if (jsonResult == null) {
 				request.returnErrorResponse("Method not found", JsonRpcErrorCodes.METHOD_NOT_FOUND)
 			} else {
 				JsonRpcResponse(id = request.id, result = jsonResult)
 			}
-		} catch (e: NotImplementedError) {
-			request.returnErrorResponse("Method not found", JsonRpcErrorCodes.METHOD_NOT_FOUND)
+		} catch (e: MethodNotFoundException) {
+			request.returnErrorResponse(e.message ?: "Method not found", JsonRpcErrorCodes.METHOD_NOT_FOUND)
+		} catch (e: MissingRequiredArgumentException) {
+			request.returnErrorResponse(e.message ?: "Invalid parameters.", JsonRpcErrorCodes.INVALID_PARAMS)
+		} catch (e: UnknownArgumentException) {
+			request.returnErrorResponse(e.message ?: "Invalid parameters.", JsonRpcErrorCodes.INVALID_PARAMS)
 		} catch (e: IllegalArgumentException) {
 			request.returnErrorResponse("Invalid params: ${e.message}", JsonRpcErrorCodes.INVALID_PARAMS)
+		} catch (e: NotImplementedError) {
+			request.returnErrorResponse("Method not found", JsonRpcErrorCodes.METHOD_NOT_FOUND)
 		} catch (e: Throwable) {
 			logError("Internal error while handling request $request", e)
 			request.returnErrorResponse("Internal error: ${e.message ?: "unknown"}", JsonRpcErrorCodes.INTERNAL_ERROR)
@@ -285,10 +297,16 @@ abstract class McpComponent(
 	// -----------------------------------------------------
 
 	private suspend fun onMessageLine(line: String) {
-		try {
-			logIncoming(line)
-			val message = line.toJsonRpcMessage()
+		logIncoming(line)
 
+		var id: String? = null
+		var method: String? = null
+		try {
+			val (parsedId, parsedMethod) = extractIdAndMethod(line)
+			id = parsedId
+			method = parsedMethod
+
+			val message = line.toJsonRpcMessage()
 			when (message) {
 				is JsonRpcResponse -> handleResponse(message)
 				is JsonRpcRequest -> dispatchRequest(message)
@@ -297,6 +315,29 @@ abstract class McpComponent(
 			}
 		} catch (e: Throwable) {
 			logError("Failed to process incoming line: $line", e)
+			val (errorCode, errorMsg) = determineErrorResponse(method, e)
+			if (id != null) {
+				val errorResponse = JsonRpcResponse(
+					id = id,
+					error = JsonRpcError(code = errorCode, message = errorMsg),
+				)
+				val serializedError = kmcpJson.encodeToString(JsonRpcResponse.serializer(), errorResponse)
+				logOutgoing(serializedError)
+				transport.writeString(serializedError)
+			}
+		}
+	}
+
+	@OptIn(ExperimentalSerializationApi::class)
+	private fun extractIdAndMethod(line: String): Pair<String?, String?> {
+		return try {
+			val jsonObj = kmcpJson.parseToJsonElement(line).jsonObject
+			val idElement = jsonObj["id"]
+			val id = if (idElement == null || idElement.toString() == "null") null else idElement.toString().trim('"')
+			val method = jsonObj["method"]?.jsonPrimitive?.contentOrNull
+			id to method
+		} catch (e: Throwable) {
+			null to null
 		}
 	}
 
@@ -341,6 +382,8 @@ abstract class McpComponent(
 	// -----------------------------------------------------
 	// Logging Utilities
 	// -----------------------------------------------------
+
+	// TODO do logging properly
 
 	private fun logIncoming(line: String) = logger?.invoke("INCOMING: $line")
 
