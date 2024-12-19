@@ -2,6 +2,7 @@ package sh.ondr.kmcp.schema.prompts
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import sh.ondr.kmcp.schema.core.JsonRpcRequest
 import sh.ondr.kmcp.schema.core.Paginated
 
@@ -16,5 +17,6 @@ data class ListPromptsRequest(
 	@Serializable
 	data class ListPromptsParams(
 		val cursor: String? = null,
+		val _meta: Map<String, JsonElement>? = null,
 	)
 }

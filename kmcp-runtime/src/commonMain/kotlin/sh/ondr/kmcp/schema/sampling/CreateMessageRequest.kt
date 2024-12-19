@@ -22,5 +22,6 @@ data class CreateMessageRequest(
 		val maxTokens: Int,
 		val stopSequences: List<String>? = null,
 		val metadata: Map<String, JsonElement>? = null,
+		val _meta: Map<String, JsonElement>? = null,
 	)
 }

@@ -2,6 +2,7 @@ package sh.ondr.kmcp.schema.core
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 @SerialName("ping")
@@ -11,11 +12,6 @@ data class PingRequest(
 ) : JsonRpcRequest() {
 	@Serializable
 	data class PingParams(
-		val _meta: PingMeta? = null,
-	) {
-		@Serializable
-		data class PingMeta(
-			val progressToken: String? = null,
-		)
-	}
+		val _meta: Map<String, JsonElement>? = null,
+	)
 }

@@ -15,5 +15,6 @@ data class CallToolRequest(
 	data class CallToolParams(
 		val name: String,
 		val arguments: Map<String, JsonElement>? = null,
+		val _meta: Map<String, JsonElement>? = null,
 	)
 }

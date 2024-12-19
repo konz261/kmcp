@@ -2,6 +2,7 @@ package sh.ondr.kmcp.schema.resources
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import sh.ondr.kmcp.schema.core.JsonRpcRequest
 
 @Serializable
@@ -13,5 +14,6 @@ data class SubscribeRequest(
 	@Serializable
 	data class SubscribeParams(
 		val uri: String,
+		val _meta: Map<String, JsonElement>? = null,
 	)
 }

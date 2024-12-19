@@ -27,8 +27,8 @@ import sh.ondr.kmcp.schema.capabilities.InitializeRequest
 import sh.ondr.kmcp.schema.capabilities.InitializeRequest.InitializeParams
 import sh.ondr.kmcp.schema.capabilities.InitializeResult
 import sh.ondr.kmcp.schema.capabilities.InitializedNotification
-import sh.ondr.kmcp.schema.completion.CompleteParams
 import sh.ondr.kmcp.schema.completion.CompleteRequest
+import sh.ondr.kmcp.schema.completion.CompleteRequest.CompleteParams
 import sh.ondr.kmcp.schema.completion.CompleteResult
 import sh.ondr.kmcp.schema.core.CancelledNotification
 import sh.ondr.kmcp.schema.core.CancelledNotification.CancelledParams
@@ -42,10 +42,10 @@ import sh.ondr.kmcp.schema.core.PingRequest
 import sh.ondr.kmcp.schema.core.PingRequest.PingParams
 import sh.ondr.kmcp.schema.core.ProgressNotification
 import sh.ondr.kmcp.schema.core.ProgressNotification.ProgressParams
-import sh.ondr.kmcp.schema.logging.LoggingLevel
 import sh.ondr.kmcp.schema.logging.LoggingMessageNotification
 import sh.ondr.kmcp.schema.logging.LoggingMessageNotification.LoggingMessageParams
-import sh.ondr.kmcp.schema.logging.SetLevelRequest
+import sh.ondr.kmcp.schema.logging.SetLoggingLevelRequest
+import sh.ondr.kmcp.schema.logging.SetLoggingLevelRequest.SetLoggingLevelParams
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest.GetPromptParams
 import sh.ondr.kmcp.schema.prompts.GetPromptResult
@@ -193,7 +193,7 @@ abstract class McpComponent(
 
 	open suspend fun handleListPromptsRequest(params: ListPromptsParams?): ListPromptsResult = notImplemented()
 
-	open suspend fun handleSetLevelRequest(params: LoggingLevel): EmptyResult = notImplemented()
+	open suspend fun handleSetLoggingLevelRequest(params: SetLoggingLevelParams): EmptyResult = notImplemented()
 
 	open suspend fun handleCompleteRequest(params: CompleteParams): CompleteResult = notImplemented()
 
@@ -242,7 +242,7 @@ abstract class McpComponent(
 				is UnsubscribeRequest -> serializeResult(handleUnsubscribeRequest(request.params))
 				is GetPromptRequest -> serializeResult(handleGetPromptRequest(request.params))
 				is ListPromptsRequest -> serializeResult(handleListPromptsRequest(request.params))
-				is SetLevelRequest -> serializeResult(handleSetLevelRequest(request.params))
+				is SetLoggingLevelRequest -> serializeResult(handleSetLoggingLevelRequest(request.params))
 				is CompleteRequest -> serializeResult(handleCompleteRequest(request.params))
 				else -> null // Unknown request => method not found
 			}

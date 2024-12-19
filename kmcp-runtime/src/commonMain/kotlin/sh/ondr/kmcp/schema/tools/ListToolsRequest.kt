@@ -2,6 +2,7 @@ package sh.ondr.kmcp.schema.tools
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import sh.ondr.kmcp.schema.core.JsonRpcRequest
 import sh.ondr.kmcp.schema.core.Paginated
 
@@ -16,5 +17,6 @@ data class ListToolsRequest(
 	@Serializable
 	data class ListToolsParams(
 		val cursor: String? = null,
+		val _meta: Map<String, JsonElement>? = null,
 	)
 }

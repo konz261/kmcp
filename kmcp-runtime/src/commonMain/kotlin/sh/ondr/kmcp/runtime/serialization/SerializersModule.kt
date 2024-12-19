@@ -12,7 +12,7 @@ import sh.ondr.kmcp.schema.core.JsonRpcRequest
 import sh.ondr.kmcp.schema.core.PingRequest
 import sh.ondr.kmcp.schema.core.ProgressNotification
 import sh.ondr.kmcp.schema.logging.LoggingMessageNotification
-import sh.ondr.kmcp.schema.logging.SetLevelRequest
+import sh.ondr.kmcp.schema.logging.SetLoggingLevelRequest
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest
 import sh.ondr.kmcp.schema.prompts.PromptListChangedNotification
@@ -44,7 +44,7 @@ val kmcpSerializersModule = SerializersModule {
 		subclass(ListToolsRequest::class)
 		subclass(CompleteRequest::class)
 		subclass(CreateMessageRequest::class)
-		subclass(SetLevelRequest::class)
+		subclass(SetLoggingLevelRequest::class)
 		subclass(ListRootsRequest::class)
 	}
 
