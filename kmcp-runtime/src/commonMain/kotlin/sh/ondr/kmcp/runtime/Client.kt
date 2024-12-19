@@ -37,9 +37,13 @@ class Client private constructor(
 	private val clientName: String,
 	private val clientVersion: String,
 	private val clientCapabilities: ClientCapabilities,
-	private val rawLoggers: List<(String) -> Unit>,
+	private val logger: (String) -> Unit,
 	coroutineContext: CoroutineContext,
-) : McpComponent(transport, logger = rawLoggers.firstOrNull(), coroutineContext = coroutineContext) {
+) : McpComponent(
+		transport = transport,
+		logger = logger,
+		coroutineContext = coroutineContext,
+	) {
 	private var initialized = false
 
 	/**
@@ -49,22 +53,21 @@ class Client private constructor(
 	 * @throws IllegalStateException if initialization fails.
 	 */
 	suspend fun initialize() {
-		val response: JsonRpcResponse =
-			sendRequest { id ->
-				InitializeRequest(
-					id = id,
-					params =
-						InitializeParams(
-							protocolVersion = MCP_VERSION,
-							capabilities = clientCapabilities,
-							clientInfo =
-								Implementation(
-									name = clientName,
-									version = clientVersion,
-								),
-						),
-				)
-			}
+		val response: JsonRpcResponse = sendRequest { id ->
+			InitializeRequest(
+				id = id,
+				params =
+					InitializeParams(
+						protocolVersion = MCP_VERSION,
+						capabilities = clientCapabilities,
+						clientInfo =
+							Implementation(
+								name = clientName,
+								version = clientVersion,
+							),
+					),
+			)
+		}
 
 		if (response.error != null) {
 			throw IllegalStateException("Initialization failed: ${response.error.message}")
@@ -88,7 +91,7 @@ class Client private constructor(
 	 *     .withTransport(myTransport)
 	 *     .withClientInfo("MyCustomClient", "1.2.3")
 	 *     .withCapabilities(ClientCapabilities(roots = RootsCapability(listChanged = true)))
-	 *     .withRawLogger { line -> println(line) }
+	 *     .withLogger { line -> println(line) }
 	 *     .build()
 	 *
 	 * client.start()
@@ -100,7 +103,7 @@ class Client private constructor(
 		private var builderClientName: String = "TestClient"
 		private var builderClientVersion: String = "1.0.0"
 		private var builderCapabilities: ClientCapabilities = ClientCapabilities()
-		private val builderRawLoggers = mutableListOf<(String) -> Unit>()
+		private var builderLogger: (String) -> Unit = {}
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
 		private var used = false
 
@@ -135,12 +138,12 @@ class Client private constructor(
 			}
 
 		/**
-		 * Adds a raw logger for incoming/outgoing messages.
+		 * Adds a logger for incoming/outgoing messages.
 		 * Can be called multiple times to add multiple loggers.
 		 */
-		fun withRawLogger(logger: (String) -> Unit) =
+		fun withLogger(logger: (String) -> Unit) =
 			apply {
-				builderRawLoggers += logger
+				builderLogger = logger
 			}
 
 		/**
@@ -168,7 +171,7 @@ class Client private constructor(
 				clientName = builderClientName,
 				clientVersion = builderClientVersion,
 				clientCapabilities = builderCapabilities,
-				rawLoggers = builderRawLoggers.toList(),
+				logger = builderLogger,
 				coroutineContext = builderDispatcher,
 			)
 		}

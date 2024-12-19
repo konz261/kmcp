@@ -26,44 +26,41 @@ class McpInitializationTest {
 			val log = mutableListOf<String>()
 
 			val (clientTransport, serverTransport) = TestTransport.Companion.createClientAndServerTransport()
-			val server =
-				Server.Builder()
-					.withDispatcher(testDispatcher)
-					.withTransport(serverTransport)
-					.withLogger { line -> log.server(line) }
-					.build()
+			val server = Server.Builder()
+				.withDispatcher(testDispatcher)
+				.withTransport(serverTransport)
+				.withLogger { line -> log.server(line) }
+				.build()
 
 			server.start()
 
-			val client =
-				Client.Builder()
-					.withTransport(clientTransport)
-					.withDispatcher(testDispatcher)
-					.withRawLogger { line -> log.add("CLIENT $line") }
-					.withClientInfo("TestClient", "1.0.0")
-					.build()
+			val client = Client.Builder()
+				.withTransport(clientTransport)
+				.withDispatcher(testDispatcher)
+				.withLogger { line -> log.add("CLIENT $line") }
+				.withClientInfo("TestClient", "1.0.0")
+				.build()
 			client.start()
 
 			client.initialize()
 			advanceUntilIdle()
 
-			val expected =
-				logLines {
-					clientOutgoing(
-						"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",
-					)
-					serverIncoming(
-						"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",
-					)
-					serverOutgoing(
-						"""{"jsonrpc":"2.0","id":"1","result":{"protocolVersion":"2024-11-05","capabilities":{},"serverInfo":{"name":"TestServer","version":"1.0.0"}}}""",
-					)
-					clientIncoming(
-						"""{"jsonrpc":"2.0","id":"1","result":{"protocolVersion":"2024-11-05","capabilities":{},"serverInfo":{"name":"TestServer","version":"1.0.0"}}}""",
-					)
-					clientOutgoing("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
-					serverIncoming("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
-				}
+			val expected = logLines {
+				clientOutgoing(
+					"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",
+				)
+				serverIncoming(
+					"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",
+				)
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"1","result":{"protocolVersion":"2024-11-05","capabilities":{},"serverInfo":{"name":"TestServer","version":"1.0.0"}}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"1","result":{"protocolVersion":"2024-11-05","capabilities":{},"serverInfo":{"name":"TestServer","version":"1.0.0"}}}""",
+				)
+				clientOutgoing("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
+				serverIncoming("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
+			}
 
 			assertLinesMatch(expected, log, "Initialization handshake test")
 		}
@@ -75,21 +72,19 @@ class McpInitializationTest {
 			val log = mutableListOf<String>()
 
 			val (clientTransport, serverTransport) = TestTransport.Companion.createClientAndServerTransport()
-			val server =
-				Server.Builder()
-					.withDispatcher(testDispatcher)
-					.withTransport(serverTransport)
-					.withLogger { line -> log.server(line) }
-					.build()
+			val server = Server.Builder()
+				.withDispatcher(testDispatcher)
+				.withTransport(serverTransport)
+				.withLogger { line -> log.server(line) }
+				.build()
 			server.start()
 
-			val client =
-				Client.Builder()
-					.withTransport(clientTransport)
-					.withDispatcher(testDispatcher)
-					.withRawLogger { line -> log.client(line) }
-					.withClientInfo("TestClient", "1.0.0")
-					.build()
+			val client = Client.Builder()
+				.withTransport(clientTransport)
+				.withDispatcher(testDispatcher)
+				.withLogger { line -> log.client(line) }
+				.withClientInfo("TestClient", "1.0.0")
+				.build()
 			client.start()
 
 			// First, do initialization dance
@@ -107,13 +102,12 @@ class McpInitializationTest {
 			assertNull(response.error, "Ping should not return an error.")
 			assertEquals("{}", response.result.toString(), "Ping result should be an empty object.")
 
-			val expected =
-				logLines {
-					clientOutgoing("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
-					serverIncoming("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
-					serverOutgoing("""{"jsonrpc":"2.0","id":"2","result":{}}""")
-					clientIncoming("""{"jsonrpc":"2.0","id":"2","result":{}}""")
-				}
+			val expected = logLines {
+				clientOutgoing("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
+				serverIncoming("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
+				serverOutgoing("""{"jsonrpc":"2.0","id":"2","result":{}}""")
+				clientIncoming("""{"jsonrpc":"2.0","id":"2","result":{}}""")
+			}
 
 			assertLinesMatch(expected, log, "ping test")
 		}
