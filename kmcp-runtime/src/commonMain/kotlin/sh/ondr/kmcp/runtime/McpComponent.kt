@@ -389,14 +389,11 @@ abstract class McpComponent(
 
 	private fun logOutgoing(line: String) = logger?.invoke("OUTGOING: $line")
 
-	private fun logWarning(message: String) {
-		println("WARNING: $message")
-	}
+	private fun logWarning(message: String) {}
 
 	private fun logError(
 		message: String,
 		e: Throwable,
 	) {
-		println("ERROR: $message\n$e")
 	}
 }

@@ -13,6 +13,7 @@ val kmcpJson = Json {
 	encodeDefaults = true
 	explicitNulls = false
 	isLenient = true
+	ignoreUnknownKeys = true
 	classDiscriminator = "method"
 	serializersModule = kmcpSerializersModule
 }

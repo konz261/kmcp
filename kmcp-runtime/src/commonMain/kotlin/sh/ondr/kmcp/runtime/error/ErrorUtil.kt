@@ -26,18 +26,6 @@ internal fun determineErrorResponse(
 			JsonRpcErrorCodes.INVALID_PARAMS to "Invalid parameters$methodSuffix."
 		}
 
-		is UnknownArgumentException -> {
-			JsonRpcErrorCodes.INVALID_PARAMS to (e.message ?: "Invalid parameters$methodSuffix.")
-		}
-
-		is MethodNotFoundException -> {
-			JsonRpcErrorCodes.METHOD_NOT_FOUND to (e.message ?: "Method not found$methodSuffix")
-		}
-
-		is MissingRequiredArgumentException -> {
-			JsonRpcErrorCodes.INVALID_PARAMS to (e.message ?: "Invalid parameters$methodSuffix.")
-		}
-
 		else -> {
 			// Everything else is an internal error or parse error if no id
 			// Without id or parse checking, just return internal error message.
