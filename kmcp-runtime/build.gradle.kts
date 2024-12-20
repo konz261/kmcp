@@ -6,30 +6,28 @@ plugins {
 }
 
 kotlin {
-	jvm()
 
+	iosArm64()
+	iosX64()
+	iosSimulatorArm64()
 	js(IR) { nodejs() }
-
+	jvm()
+	linuxX64()
 	macosArm64()
-
-	listOf(
-		iosX64(),
-		iosArm64(),
-	)
 
 	sourceSets {
 		commonMain {
 			dependencies {
-				implementation("sh.ondr:kotlin-json-schema:0.1.0")
+				implementation(libs.ondrsh.jsonschema)
 				implementation(libs.kotlinx.atomicfu)
-				implementation(libs.coroutines.core)
+				implementation(libs.kotlinx.coroutines.core)
 				api(libs.kotlinx.serialization.core)
 				api(libs.kotlinx.serialization.json)
 			}
 		}
 		commonTest {
 			dependencies {
-				implementation(libs.coroutines.test)
+				implementation(libs.kotlinx.coroutines.test)
 				implementation(kotlin("test"))
 			}
 		}
