@@ -59,7 +59,7 @@ private fun KmcpProcessor.generatePromptHandlersFile() {
 		appendLine()
 		appendLine("import kotlinx.serialization.json.JsonObject")
 		appendLine("import kotlinx.serialization.json.decodeFromJsonElement")
-		appendLine("import sh.ondr.kmcp.runtime.kmcpJson")
+		appendLine("import sh.ondr.kmcp.runtime.core.kmcpJson")
 		appendLine("import sh.ondr.kmcp.schema.prompts.GetPromptResult")
 		appendLine("import sh.ondr.kmcp.runtime.prompts.PromptHandler")
 		appendLine("import sh.ondr.kmcp.runtime.error.MissingRequiredArgumentException")

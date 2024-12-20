@@ -14,7 +14,7 @@ import kotlin.jvm.java
 class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 	override fun apply(target: Project) {
 		val runtimeDependency = "${BuildConfig.PLUGIN_GROUP}:kmcp-runtime:${BuildConfig.PLUGIN_VERSION}"
-		val jsonSchemaDependency = "sh.ondr:kotlin-json-schema:0.1.0"
+		val jsonSchemaDependency = "sh.ondr:kotlin-json-schema:0.1.1"
 		val kspDependency = "${BuildConfig.PLUGIN_GROUP}:kmcp-ksp:${BuildConfig.PLUGIN_VERSION}"
 
 		// Apply in any case

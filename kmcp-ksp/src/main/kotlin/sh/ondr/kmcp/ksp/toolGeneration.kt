@@ -59,7 +59,7 @@ private fun KmcpProcessor.generateToolHandlersFile() {
 		appendLine()
 		appendLine("import kotlinx.serialization.json.JsonObject")
 		appendLine("import kotlinx.serialization.json.decodeFromJsonElement")
-		appendLine("import sh.ondr.kmcp.runtime.kmcpJson")
+		appendLine("import sh.ondr.kmcp.runtime.core.kmcpJson")
 		appendLine("import sh.ondr.kmcp.schema.tools.CallToolResult")
 		appendLine("import sh.ondr.kmcp.schema.content.ToolContent")
 		appendLine("import sh.ondr.kmcp.runtime.tools.ToolHandler")

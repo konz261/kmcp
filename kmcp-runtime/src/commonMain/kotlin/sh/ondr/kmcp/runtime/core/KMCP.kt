@@ -1,4 +1,4 @@
-package sh.ondr.kmcp.runtime
+package sh.ondr.kmcp.runtime.core
 
 import kotlinx.serialization.json.Json
 import sh.ondr.kmcp.runtime.prompts.PromptHandler

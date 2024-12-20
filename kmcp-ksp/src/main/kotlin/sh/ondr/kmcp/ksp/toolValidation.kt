@@ -24,10 +24,17 @@ internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean 
 		}
 
 	// 2. Return type must be ToolContent
-	tools.filter { !it.returnTypeFqn.endsWith("ToolContent") }
+	val contentPkg = "$pkg.schema.content"
+	val allowed = setOf(
+		"$contentPkg.ToolContent",
+		"$contentPkg.EmbeddedResourceContent",
+		"$contentPkg.TextContent",
+		"$contentPkg.ImageContent",
+	)
+	tools.filter { it.returnTypeFqn !in allowed }
 		.forEach { tool ->
 			logger.error(
-				"KMCP error: @Tool function '${tool.functionName}' must return the ToolContent interface. " +
+				"KMCP error: @Tool function '${tool.functionName}' must return ToolContent or a sub-type. " +
 					"Currently returns: ${tool.returnTypeReadable}. " +
 					"Please change the return type to ToolContent.",
 			)

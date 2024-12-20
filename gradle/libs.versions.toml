@@ -4,6 +4,7 @@ auto-service-annotations = "1.1.1"
 build-config = "4.1.2"
 coroutines = "1.9.0"
 json-schema = "0.1.1"
+kmcp = "0.1.0"
 kotlin = "2.1.0"
 kotlinx-serialization = "1.7.3"
 ksp-api = "2.1.0-1.0.29"
@@ -16,6 +17,7 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
+ondrsh-kmcp = { id = "sh.ondr.kmcp", version.ref = "kmcp" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 
 [libraries]

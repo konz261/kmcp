@@ -6,6 +6,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import sh.ondr.kmcp.runtime.core.KMCP
+import sh.ondr.kmcp.runtime.core.MCP_VERSION
 import sh.ondr.kmcp.runtime.error.MethodNotFoundException
 import sh.ondr.kmcp.runtime.transport.Transport
 import sh.ondr.kmcp.schema.capabilities.Implementation

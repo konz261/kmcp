@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import sh.ondr.kmcp.runtime.core.kmcpJson
 import sh.ondr.kmcp.runtime.error.MethodNotFoundException
 import sh.ondr.kmcp.runtime.error.MissingRequiredArgumentException
 import sh.ondr.kmcp.runtime.error.UnknownArgumentException
@@ -378,6 +379,18 @@ abstract class McpComponent(
 			pendingRequests.clear()
 		}
 	}
+
+	private fun JsonRpcRequest.returnErrorResponse(
+		message: String,
+		code: Int,
+	): JsonRpcResponse {
+		return JsonRpcResponse(
+			id = id,
+			error = JsonRpcError(code, message),
+		)
+	}
+
+	private fun notImplemented(): Nothing = throw NotImplementedError("Not implemented.")
 
 	// -----------------------------------------------------
 	// Logging Utilities

@@ -7,7 +7,7 @@ import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
-import sh.ondr.kmcp.runtime.JSON_RPC_VERSION
+import sh.ondr.kmcp.runtime.core.JSON_RPC_VERSION
 
 /**
  * Base class for all JSON-RPC notifications.

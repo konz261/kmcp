@@ -4,6 +4,7 @@ package sh.ondr.kmcp.runtime
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.InternalSerializationApi
+import sh.ondr.kmcp.runtime.core.MCP_VERSION
 import sh.ondr.kmcp.runtime.transport.Transport
 import sh.ondr.kmcp.schema.capabilities.ClientCapabilities
 import sh.ondr.kmcp.schema.capabilities.Implementation

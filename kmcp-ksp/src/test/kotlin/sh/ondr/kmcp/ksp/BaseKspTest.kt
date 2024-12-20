@@ -66,7 +66,7 @@ abstract class BaseKspTest {
 					sourceSets {
 						commonMain {
 							dependencies {
-								implementation("sh.ondr:kotlin-json-schema:0.1.0")
+								implementation("sh.ondr:kotlin-json-schema:0.1.1")
 							}
 						}
 					}

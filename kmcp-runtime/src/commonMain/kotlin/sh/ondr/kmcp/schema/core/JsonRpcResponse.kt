@@ -2,7 +2,7 @@ package sh.ondr.kmcp.schema.core
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
-import sh.ondr.kmcp.runtime.JSON_RPC_VERSION
+import sh.ondr.kmcp.runtime.core.JSON_RPC_VERSION
 
 @Serializable
 data class JsonRpcResponse(

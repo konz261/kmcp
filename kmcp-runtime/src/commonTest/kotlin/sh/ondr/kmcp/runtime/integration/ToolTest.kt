@@ -11,6 +11,7 @@ import sh.ondr.kmcp.logLines
 import sh.ondr.kmcp.runtime.Client
 import sh.ondr.kmcp.runtime.Server
 import sh.ondr.kmcp.runtime.annotation.Tool
+import sh.ondr.kmcp.runtime.core.toTextContent
 import sh.ondr.kmcp.runtime.serialization.deserializeResult
 import sh.ondr.kmcp.runtime.transport.TestTransport
 import sh.ondr.kmcp.schema.content.TextContent
@@ -28,9 +29,7 @@ fun sendEmail(
 	recipients: List<String>,
 	title: String,
 	body: String?,
-): ToolContent {
-	return TextContent("Sending email to $recipients with title $title and body $body")
-}
+) = "Sending email to $recipients with title $title and body $body".toTextContent()
 
 /**
  * This function greets the user

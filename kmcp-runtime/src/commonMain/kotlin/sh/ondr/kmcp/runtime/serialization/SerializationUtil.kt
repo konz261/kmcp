@@ -7,7 +7,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import sh.ondr.jsonschema.SchemaEncoder
-import sh.ondr.kmcp.runtime.kmcpJson
+import sh.ondr.kmcp.runtime.core.kmcpJson
 import sh.ondr.kmcp.schema.core.JsonRpcMessage
 import sh.ondr.kmcp.schema.core.JsonRpcNotification
 import sh.ondr.kmcp.schema.core.JsonRpcRequest

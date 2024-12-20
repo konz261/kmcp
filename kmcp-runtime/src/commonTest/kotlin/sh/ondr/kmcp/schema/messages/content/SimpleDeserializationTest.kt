@@ -4,7 +4,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import sh.ondr.kmcp.runtime.kmcpJson
+import sh.ondr.kmcp.runtime.core.kmcpJson
 import sh.ondr.kmcp.schema.content.Content
 import sh.ondr.kmcp.schema.content.EmbeddedResourceContent
 import sh.ondr.kmcp.schema.content.ImageContent
