@@ -8,7 +8,7 @@ kmcp = "0.1.0"
 kotlin = "2.1.0"
 kotlinx-serialization = "1.7.3"
 ksp-api = "2.1.0-1.0.29"
-maven-publish = "0.25.3"
+maven-publish = "0.30.0"
 spotless = "6.25.0"
 
 [plugins]
