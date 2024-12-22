@@ -13,9 +13,9 @@ import kotlin.jvm.java
 @AutoService(KotlinCompilerPluginSupportPlugin::class)
 class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 	override fun apply(target: Project) {
-		val runtimeDependency = "${BuildConfig.PLUGIN_GROUP}:kmcp-runtime:${BuildConfig.PLUGIN_VERSION}"
+		val kspDependency = target.getKspDependency()
+		val runtimeDependency = target.getRuntimeDependency()
 		val jsonSchemaDependency = "sh.ondr:kotlin-json-schema:0.1.1"
-		val kspDependency = "${BuildConfig.PLUGIN_GROUP}:kmcp-ksp:${BuildConfig.PLUGIN_VERSION}"
 
 		// Apply in any case
 		target.pluginManager.apply("com.google.devtools.ksp")
@@ -40,12 +40,6 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 							kspDependency,
 						)
 					}
-				}
-			}
-
-			// Add KSP dependency for all Kotlin targets test compilations
-			kotlin.targets.configureEach { kotlinTarget ->
-				kotlinTarget.compilations.configureEach { compilation ->
 					if (compilation.name == "test" && kotlinTarget.name != "metadata") {
 						target.dependencies.add(
 							"ksp${kotlinTarget.name.replaceFirstChar { it.uppercase() }}Test",
@@ -74,15 +68,31 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 		}
 	}
 
+	fun Project.getRuntimeDependency() =
+		if (isInternalBuild()) {
+			project(":kmcp-runtime")
+		} else {
+			"sh.ondr.kmcp:kmcp-runtime:${PLUGIN_VERSION}"
+		}
+
+	fun Project.getKspDependency() =
+		if (isInternalBuild()) {
+			project(":kmcp-ksp")
+		} else {
+			"sh.ondr.kmcp:kmcp-ksp:${PLUGIN_VERSION}"
+		}
+
+	fun Project.isInternalBuild() = findProperty("sh.ondr.kmcp.internal") == "true"
+
 	override fun isApplicable(kotlinCompilation: KotlinCompilation<*>): Boolean = true
 
-	override fun getCompilerPluginId(): String = "${BuildConfig.PLUGIN_GROUP}.compiler"
+	override fun getCompilerPluginId(): String = "sh.ondr.kmcp"
 
 	override fun getPluginArtifact(): SubpluginArtifact =
 		SubpluginArtifact(
-			groupId = BuildConfig.PLUGIN_GROUP,
+			groupId = "sh.ondr.kmcp",
 			artifactId = "kmcp-compiler",
-			version = BuildConfig.PLUGIN_VERSION,
+			version = PLUGIN_VERSION,
 		)
 
 	override fun applyToCompilation(kotlinCompilation: KotlinCompilation<*>): Provider<List<SubpluginOption>> {

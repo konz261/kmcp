@@ -17,58 +17,66 @@ dependencies {
 	implementation(libs.ksp.gradle.plugin)
 }
 
-val pluginGroup = rootProject.findProperty("group") as String
-val pluginVersion = rootProject.findProperty("version") as String
-
 buildConfig {
-	packageName("$pluginGroup.gradle")
-	buildConfigField("String", "PLUGIN_GROUP", "\"$pluginGroup\"")
-	buildConfigField("String", "PLUGIN_VERSION", "\"$pluginVersion\"")
+	useKotlinOutput {
+		internalVisibility = true
+		topLevelConstants = true
+	}
+	packageName("sh.ondr.kmcp.gradle")
+	buildConfigField("String", "PLUGIN_VERSION", "\"$version\"")
 }
 
 gradlePlugin {
 	plugins {
 		create("main") {
-			id = pluginGroup
-			implementationClass = "$pluginGroup.gradle.KmcpGradlePlugin"
-			version = pluginVersion
+			id = "sh.ondr.kmcp"
+			implementationClass = "sh.ondr.kmcp.gradle.KmcpGradlePlugin"
 		}
 	}
 }
 
-mavenPublishing {
-	publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-	signAllPublications()
+// If the root project is NOT 'kmcp', we must be in `kmcp-build`
+if (rootProject.name != "kmcp") {
+	// Move build directory into `kmcp-build`
+	layout.buildDirectory = file("$rootDir/build/kmcp-gradle-included")
+}
 
-	coordinates(
-		groupId = project.group.toString(),
-		artifactId = "kmcp-gradle",
-		version = project.version.toString(),
-	)
+// Only publish from real build
+if (rootProject.name == "kmcp") {
+	mavenPublishing {
+		publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+		signAllPublications()
 
-	pom {
-		name = "KMCP Gradle Plugin"
-		description = "KMCP: Kotlin Multiplatform MCP Framework Gradle Plugin"
-		inceptionYear = "2024"
-		url = "https://github.com/ondrsh/kmcp"
-		licenses {
-			license {
-				name = "Apache License 2.0"
-				url = "https://www.apache.org/licenses/LICENSE-2.0"
-				distribution = "repo"
-			}
-		}
-		developers {
-			developer {
-				id = "ondrsh"
-				name = "Andreas Toth"
-				url = "https://github.com/ondrsh"
-			}
-		}
-		scm {
+		coordinates(
+			groupId = project.group.toString(),
+			artifactId = "kmcp-gradle",
+			version = project.version.toString(),
+		)
+
+		pom {
+			name = "KMCP Gradle Plugin"
+			description = "KMCP: Kotlin Multiplatform MCP Framework Gradle Plugin"
+			inceptionYear = "2024"
 			url = "https://github.com/ondrsh/kmcp"
-			connection = "scm:git:git://github.com/ondrsh/kmcp.git"
-			developerConnection = "scm:git:ssh://git@github.com/ondrsh/kmcp.git"
+			licenses {
+				license {
+					name = "Apache License 2.0"
+					url = "https://www.apache.org/licenses/LICENSE-2.0"
+					distribution = "repo"
+				}
+			}
+			developers {
+				developer {
+					id = "ondrsh"
+					name = "Andreas Toth"
+					url = "https://github.com/ondrsh"
+				}
+			}
+			scm {
+				url = "https://github.com/ondrsh/kmcp"
+				connection = "scm:git:git://github.com/ondrsh/kmcp.git"
+				developerConnection = "scm:git:ssh://git@github.com/ondrsh/kmcp.git"
+			}
 		}
 	}
 }
