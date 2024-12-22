@@ -7,6 +7,8 @@ plugins {
 }
 
 allprojects {
+	version = property("VERSION_NAME") as String
+
 	configurations.configureEach {
 		resolutionStrategy.dependencySubstitution {
 			substitute(module("sh.ondr.kmcp:kmcp-compiler"))

@@ -1,5 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
-
 plugins {
 	id("java-gradle-plugin")
 	alias(libs.plugins.build.config)
@@ -43,40 +41,5 @@ if (rootProject.name != "kmcp") {
 
 // Only publish from real build
 if (rootProject.name == "kmcp") {
-	mavenPublishing {
-		publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-		signAllPublications()
-
-		coordinates(
-			groupId = project.group.toString(),
-			artifactId = "kmcp-gradle",
-			version = project.version.toString(),
-		)
-
-		pom {
-			name = "KMCP Gradle Plugin"
-			description = "KMCP: Kotlin Multiplatform MCP Framework Gradle Plugin"
-			inceptionYear = "2024"
-			url = "https://github.com/ondrsh/kmcp"
-			licenses {
-				license {
-					name = "Apache License 2.0"
-					url = "https://www.apache.org/licenses/LICENSE-2.0"
-					distribution = "repo"
-				}
-			}
-			developers {
-				developer {
-					id = "ondrsh"
-					name = "Andreas Toth"
-					url = "https://github.com/ondrsh"
-				}
-			}
-			scm {
-				url = "https://github.com/ondrsh/kmcp"
-				connection = "scm:git:git://github.com/ondrsh/kmcp.git"
-				developerConnection = "scm:git:ssh://git@github.com/ondrsh/kmcp.git"
-			}
-		}
-	}
+	apply(plugin = "com.vanniktech.maven.publish")
 }
