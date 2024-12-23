@@ -90,7 +90,7 @@ import kotlin.coroutines.CoroutineContext
  */
 abstract class McpComponent(
 	private val transport: Transport,
-	private val logger: ((String) -> Unit)? = null,
+	private val logger: (suspend (String) -> Unit)? = null,
 	coroutineContext: CoroutineContext = Dispatchers.Default,
 ) {
 	// -----------------------------------------------------
@@ -398,9 +398,9 @@ abstract class McpComponent(
 
 	// TODO do logging properly
 
-	private fun logIncoming(line: String) = logger?.invoke("INCOMING: $line")
+	private suspend fun logIncoming(line: String) = logger?.invoke("INCOMING: $line")
 
-	private fun logOutgoing(line: String) = logger?.invoke("OUTGOING: $line")
+	private suspend fun logOutgoing(line: String) = logger?.invoke("OUTGOING: $line")
 
 	private fun logWarning(message: String) {}
 

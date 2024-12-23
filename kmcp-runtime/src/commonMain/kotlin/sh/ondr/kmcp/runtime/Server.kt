@@ -38,7 +38,7 @@ class Server private constructor(
 	private val transport: Transport,
 	private val tools: MutableList<String>,
 	private val prompts: MutableList<String>,
-	private val logger: (String) -> Unit,
+	private val logger: suspend (String) -> Unit,
 	private val dispatcher: CoroutineContext,
 	private val serverName: String,
 	private val serverVersion: String,
@@ -166,7 +166,7 @@ class Server private constructor(
 		private val builderTools = mutableSetOf<String>()
 		private val builderPrompts = mutableSetOf<String>()
 		private var builderTransport: Transport? = null
-		private var builderLogger: (String) -> Unit = {}
+		private var builderLogger: suspend (String) -> Unit = {}
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
 		private var builderServerName: String = "TestServer"
 		private var builderServerVersion: String = "1.0.0"
@@ -234,7 +234,7 @@ class Server private constructor(
 		 *
 		 * Useful for debugging or auditing. If not set, no logging occurs.
 		 */
-		fun withLogger(logger: (String) -> Unit) =
+		fun withLogger(logger: suspend (String) -> Unit) =
 			apply {
 				builderLogger = logger
 			}

@@ -38,7 +38,7 @@ class Client private constructor(
 	private val clientName: String,
 	private val clientVersion: String,
 	private val clientCapabilities: ClientCapabilities,
-	private val logger: (String) -> Unit,
+	private val logger: suspend (String) -> Unit,
 	coroutineContext: CoroutineContext,
 ) : McpComponent(
 		transport = transport,
@@ -104,7 +104,7 @@ class Client private constructor(
 		private var builderClientName: String = "TestClient"
 		private var builderClientVersion: String = "1.0.0"
 		private var builderCapabilities: ClientCapabilities = ClientCapabilities()
-		private var builderLogger: (String) -> Unit = {}
+		private var builderLogger: suspend (String) -> Unit = {}
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
 		private var used = false
 
@@ -140,9 +140,8 @@ class Client private constructor(
 
 		/**
 		 * Adds a logger for incoming/outgoing messages.
-		 * Can be called multiple times to add multiple loggers.
 		 */
-		fun withLogger(logger: (String) -> Unit) =
+		fun withLogger(logger: suspend (String) -> Unit) =
 			apply {
 				builderLogger = logger
 			}
