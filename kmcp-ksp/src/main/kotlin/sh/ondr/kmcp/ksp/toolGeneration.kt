@@ -77,7 +77,7 @@ private fun KmcpProcessor.generateToolHandlersFile() {
 			appendLine("class $handlerClassName : ToolHandler {")
 			appendLine("    private val knownParams = setOf($paramNames)")
 			appendLine()
-			appendLine("    override fun call(params: JsonObject): CallToolResult {")
+			appendLine("    override suspend fun call(params: JsonObject): CallToolResult {")
 			appendLine("        val unknownKeys = params.keys - knownParams")
 			appendLine("        if (unknownKeys.isNotEmpty()) {")
 			appendLine(

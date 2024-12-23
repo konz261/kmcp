@@ -35,7 +35,7 @@ fun sendEmail(
  * This function greets the user
  */
 @Tool
-fun greet(
+suspend fun greet(
 	name: String,
 	age: Int = 25,
 ): ToolContent {

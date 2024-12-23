@@ -87,7 +87,6 @@ internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean 
 		Modifier.INTERNAL,
 		Modifier.ABSTRACT,
 		Modifier.OPEN,
-		Modifier.SUSPEND,
 	)
 
 	tools.forEach { tool ->
@@ -105,7 +104,7 @@ internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean 
 		if (foundDisallowed.isNotEmpty()) {
 			logger.error(
 				"KMCP error: @Tool function '${tool.functionName}' has disallowed modifiers: $foundDisallowed. " +
-					"Only a public, top-level, non-suspend, non-inline, and non-abstract/protected/private/internal function is allowed.",
+					"Only public, top-level, non-inline, non-abstract, non-internal functions are allowed.",
 			)
 			errorsFound = true
 		}
