@@ -2,14 +2,16 @@ package sh.ondr.kmcp.runtime
 
 import CreateMessageResult
 import kotlinx.atomicfu.atomic
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -93,13 +95,27 @@ abstract class McpComponent(
 	private val logger: (suspend (String) -> Unit)? = null,
 	coroutineContext: CoroutineContext = Dispatchers.Default,
 ) {
-	// -----------------------------------------------------
-	// Internal State & Coroutines
-	// -----------------------------------------------------
-
+	/**
+	 * A supervisor scope used for launching coroutines that handle requests.
+	 * If one request fails, it doesn't tear down the entire component.
+	 */
 	private val scope = CoroutineScope(coroutineContext + SupervisorJob())
-	private val pendingRequests = mutableMapOf<String, CompletableDeferred<JsonRpcResponse>>()
-	private val pendingRequestsMutex = Mutex()
+
+	/**
+	 * Tracks outgoing requests that we initiated, keyed by request ID.
+	 * The [CompletableDeferred] is completed when a corresponding response arrives.
+	 */
+	private val outgoingRequests = mutableMapOf<String, CompletableDeferred<JsonRpcResponse>>()
+	private val outgoingRequestsMutex = Mutex()
+
+	/**
+	 * Tracks incoming requests that we are currently processing, keyed by request ID.
+	 * Each request is handled in a coroutine [Job]. This allows us to cancel a long-running
+	 * operation if a `notifications/cancelled` is received.
+	 */
+	private val incomingRequests = mutableMapOf<String, Job>()
+	private val incomingRequestsMutex = Mutex()
+
 	private val nextRequestId = atomic(1L)
 
 	// -----------------------------------------------------
@@ -122,13 +138,16 @@ abstract class McpComponent(
 	}
 
 	/**
-	 * Sends a request and awaits a response.
+	 * Sends a request and suspends until a corresponding response is received or this coroutine is cancelled.
+	 *
+	 * If the coroutine calling [sendRequest] is cancelled, a `notifications/cancelled`
+	 * is automatically sent to the remote, so the remote side can stop processing.
 	 */
 	suspend fun sendRequest(builder: (id: String) -> JsonRpcRequest): JsonRpcResponse {
 		val requestId = nextRequestId.getAndIncrement().toString()
 		val deferred = CompletableDeferred<JsonRpcResponse>()
-		pendingRequestsMutex.withLock {
-			pendingRequests[requestId] = deferred
+		outgoingRequestsMutex.withLock {
+			outgoingRequests[requestId] = deferred
 		}
 
 		val request = builder(requestId)
@@ -136,7 +155,24 @@ abstract class McpComponent(
 		logOutgoing(serialized)
 		transport.writeString(serialized)
 
-		return deferred.await()
+		// Await the response, or handle local cancellation
+		try {
+			return deferred.await()
+		} catch (ce: CancellationException) {
+			// Coroutine was cancelled. Remove from map and notify the remote side.
+			outgoingRequestsMutex.withLock {
+				outgoingRequests.remove(requestId)
+			}
+			val reason = ce.message?.ifBlank { null } ?: "User canceled"
+			val notification = CancelledNotification(
+				CancelledParams(
+					requestId = requestId,
+					reason = reason,
+				),
+			)
+			sendNotification(notification)
+			throw ce
+		}
 	}
 
 	/**
@@ -156,11 +192,10 @@ abstract class McpComponent(
 
 	/**
 	 * Called when the transport reports an error.
-	 * Subclasses may override if needed.
-	 * By default, completes all pending requests with an error.
+	 * By default, completes all outgoing requests exceptionally, but does not shut down the entire scope.
 	 */
 	protected open suspend fun onTransportError(error: Throwable) {
-		completeAllPendingRequestsExceptionally(error)
+		completeAllOutgoingRequestsExceptionally(error)
 	}
 
 	// -----------------------------------------------------
@@ -202,9 +237,23 @@ abstract class McpComponent(
 	// Abstract Handlers for Notifications (To be Overridden)
 	// -----------------------------------------------------
 
+	/**
+	 * Called when the remote side sends `notifications/initialized`.
+	 */
 	protected open suspend fun handleInitializedNotification(): Unit = notImplemented()
 
-	protected open suspend fun handleCancelledNotification(params: CancelledParams): Unit = notImplemented()
+	/**
+	 * Called when the remote side wants to cancel an in-progress request (by ID).
+	 * The default implementation cancels the corresponding job in [incomingRequests].
+	 */
+	protected open suspend fun handleCancelledNotification(params: CancelledParams) {
+		incomingRequestsMutex.withLock {
+			val job = incomingRequests[params.requestId]
+			if (job != null && job.isActive) {
+				job.cancel(CancellationException("Remote side cancelled request: ${params.reason}"))
+			}
+		}
+	}
 
 	protected open suspend fun handleProgressNotification(params: ProgressParams): Unit = notImplemented()
 
@@ -286,7 +335,7 @@ abstract class McpComponent(
 				else -> logWarning("Received unknown notification: ${notification::class}")
 			}
 		} catch (e: NotImplementedError) {
-			// Subclass didn't implement this notification handler
+			// Subclass didn't implement a particular notification handler
 			logWarning("No handler implemented for notification ${notification::class}")
 		} catch (e: Throwable) {
 			logError("Error handling notification $notification", e)
@@ -329,7 +378,6 @@ abstract class McpComponent(
 		}
 	}
 
-	@OptIn(ExperimentalSerializationApi::class)
 	private fun extractIdAndMethod(line: String): Pair<String?, String?> {
 		return try {
 			val jsonObj = kmcpJson.parseToJsonElement(line).jsonObject
@@ -344,7 +392,9 @@ abstract class McpComponent(
 
 	private suspend fun handleResponse(response: JsonRpcResponse) {
 		val requestId = response.id
-		val deferred = pendingRequestsMutex.withLock { pendingRequests.remove(requestId) }
+		val deferred = outgoingRequestsMutex.withLock {
+			outgoingRequests.remove(requestId)
+		}
 		if (deferred == null) {
 			logWarning("Received response for unknown request ID: $requestId")
 		} else {
@@ -352,11 +402,33 @@ abstract class McpComponent(
 		}
 	}
 
+	/**
+	 * Dispatches an incoming request by launching a child coroutine for it.
+	 * The job is stored in [incomingRequests], so we can cancel it if needed.
+	 */
 	private suspend fun dispatchRequest(request: JsonRpcRequest) {
-		val response = handleRequest(request)
-		val responseLine = kmcpJson.encodeToString(JsonRpcResponse.serializer(), response)
-		logOutgoing(responseLine)
-		transport.writeString(responseLine)
+		val job = scope.launch {
+			val response = handleRequest(request)
+			if (this@launch.isActive) {
+				val responseLine = kmcpJson.encodeToString(JsonRpcResponse.serializer(), response)
+				logOutgoing(responseLine)
+				transport.writeString(responseLine)
+			}
+		}
+
+		// Track this incoming request job by ID
+		incomingRequestsMutex.withLock {
+			incomingRequests[request.id] = job
+		}
+
+		// Once completed, remove it from the map
+		job.invokeOnCompletion {
+			scope.launch {
+				incomingRequestsMutex.withLock {
+					incomingRequests.remove(request.id)
+				}
+			}
+		}
 	}
 
 	private suspend fun dispatchNotification(notification: JsonRpcNotification) {
@@ -371,12 +443,15 @@ abstract class McpComponent(
 	// Helper & Utility Functions
 	// -----------------------------------------------------
 
-	private suspend fun completeAllPendingRequestsExceptionally(error: Throwable) {
-		pendingRequestsMutex.withLock {
-			for ((_, deferred) in pendingRequests) {
+	/**
+	 * Completes all outgoing requests exceptionally so that waiting callers see [error] as the cause.
+	 */
+	private suspend fun completeAllOutgoingRequestsExceptionally(error: Throwable) {
+		outgoingRequestsMutex.withLock {
+			for ((_, deferred) in outgoingRequests) {
 				deferred.completeExceptionally(error)
 			}
-			pendingRequests.clear()
+			outgoingRequests.clear()
 		}
 	}
 
@@ -390,6 +465,10 @@ abstract class McpComponent(
 		)
 	}
 
+	/**
+	 * By default, we throw [NotImplementedError] for unimplemented optional parts of the protocol.
+	 * Subclasses can override if they want to provide an actual implementation.
+	 */
 	private fun notImplemented(): Nothing = throw NotImplementedError("Not implemented.")
 
 	// -----------------------------------------------------
