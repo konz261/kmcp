@@ -21,6 +21,8 @@ kotlin {
 				implementation(libs.ondrsh.jsonschema)
 				implementation(libs.kotlinx.atomicfu)
 				implementation(libs.kotlinx.coroutines.core)
+				implementation(libs.square.okio)
+				implementation(libs.square.okio.fakefilesystem)
 				api(libs.kotlinx.serialization.core)
 				api(libs.kotlinx.serialization.json)
 			}

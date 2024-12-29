@@ -9,6 +9,7 @@ kotlin = "2.1.0"
 kotlinx-serialization = "1.7.3"
 ksp-api = "2.1.0-1.0.29"
 maven-publish = "0.30.0"
+okio = "3.9.1"
 spotless = "6.25.0"
 
 [plugins]
@@ -35,3 +36,5 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 ksp-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp-api" }
 ksp-gradle-plugin = { module = "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin", version.ref = "ksp-api" }
 ondrsh-jsonschema = { module = "sh.ondr:kotlin-json-schema", version.ref = "json-schema" }
+square-okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+square-okio-fakefilesystem = { module = "com.squareup.okio:okio-fakefilesystem", version.ref = "okio" }
