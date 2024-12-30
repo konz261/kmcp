@@ -6,9 +6,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Test
 import sh.ondr.kmcp.assertLinesMatch
 import sh.ondr.kmcp.client
 import sh.ondr.kmcp.logLines
@@ -27,6 +24,9 @@ import sh.ondr.kmcp.schema.resources.SubscribeRequest
 import sh.ondr.kmcp.schema.resources.UnsubscribeRequest
 import sh.ondr.kmcp.schema.resources.UnsubscribeRequest.UnsubscribeParams
 import sh.ondr.kmcp.server
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MultiResourceProviderTest {
@@ -104,7 +104,7 @@ class MultiResourceProviderTest {
 			// Inspect the actual data
 			val listResourcesResult = listRequestResp.result?.deserializeResult<ListResourcesResult>()
 			assertNotNull(listResourcesResult)
-			val resourceList = listResourcesResult!!.resources
+			val resourceList = listResourcesResult.resources
 			// Expect 2 resources
 			assertEquals(2, resourceList.size)
 
@@ -136,7 +136,7 @@ class MultiResourceProviderTest {
 
 			val readAResult = readAResp.result?.deserializeResult<ReadResourceResult>()
 			assertNotNull(readAResult)
-			val aContents = readAResult!!.contents
+			val aContents = readAResult.contents
 			assertEquals(1, aContents.size)
 			val aContent = aContents.first()
 			if (aContent is ResourceContents.Text) {
@@ -281,7 +281,7 @@ class MultiResourceProviderTest {
 
 			// 3) The server should return a JSON-RPC error with code -32002 (resource not found).
 			assertNotNull(response.error)
-			assertEquals(JsonRpcErrorCodes.RESOURCE_NOT_FOUND, response.error!!.code)
+			assertEquals(JsonRpcErrorCodes.RESOURCE_NOT_FOUND, response.error.code)
 
 			// 4) Check logs
 			val expectedLogs = logLines {
