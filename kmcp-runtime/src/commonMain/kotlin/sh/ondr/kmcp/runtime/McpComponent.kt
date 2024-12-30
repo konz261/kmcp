@@ -19,6 +19,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import sh.ondr.kmcp.runtime.core.kmcpJson
 import sh.ondr.kmcp.runtime.error.MethodNotFoundException
 import sh.ondr.kmcp.runtime.error.MissingRequiredArgumentException
+import sh.ondr.kmcp.runtime.error.ResourceNotFoundException
 import sh.ondr.kmcp.runtime.error.UnknownArgumentException
 import sh.ondr.kmcp.runtime.error.determineErrorResponse
 import sh.ondr.kmcp.runtime.serialization.serializeResult
@@ -302,6 +303,8 @@ abstract class McpComponent(
 			} else {
 				JsonRpcResponse(id = request.id, result = jsonResult)
 			}
+		} catch (e: ResourceNotFoundException) {
+			request.returnErrorResponse(e.message ?: "Resource not found.", JsonRpcErrorCodes.RESOURCE_NOT_FOUND)
 		} catch (e: MethodNotFoundException) {
 			request.returnErrorResponse(e.message ?: "Method not found", JsonRpcErrorCodes.METHOD_NOT_FOUND)
 		} catch (e: MissingRequiredArgumentException) {
