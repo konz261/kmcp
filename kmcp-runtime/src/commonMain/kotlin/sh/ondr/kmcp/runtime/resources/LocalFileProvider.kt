@@ -30,10 +30,8 @@ class LocalFileProvider(
 	private val rootDir: Path,
 	private val fileProviderMode: LocalFileProviderMode = LocalFileProviderMode.DISCRETE,
 	knownFiles: List<String> = emptyList(),
-) : ResourceProvider {
-	// Callbacks set by the Server. Initially no-ops.
-	override var onResourceChange: suspend (uri: String) -> Unit = {}
-	override var onResourcesListChanged: suspend () -> Unit = {}
+) : ResourceProvider() {
+	override val supportsSubscriptions: Boolean = true
 
 	/**
 	 * We store knownFiles in a mutable list so we can dynamically add/remove resources.
