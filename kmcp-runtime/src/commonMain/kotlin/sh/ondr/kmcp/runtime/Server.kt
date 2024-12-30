@@ -9,17 +9,33 @@ import kotlinx.serialization.json.JsonPrimitive
 import sh.ondr.kmcp.runtime.core.KMCP
 import sh.ondr.kmcp.runtime.core.MCP_VERSION
 import sh.ondr.kmcp.runtime.error.MethodNotFoundException
+import sh.ondr.kmcp.runtime.error.ResourceNotFoundException
+import sh.ondr.kmcp.runtime.resources.ResourceProvider
+import sh.ondr.kmcp.runtime.resources.ResourceProviderManager
 import sh.ondr.kmcp.runtime.transport.Transport
 import sh.ondr.kmcp.schema.capabilities.Implementation
 import sh.ondr.kmcp.schema.capabilities.InitializeRequest.InitializeParams
 import sh.ondr.kmcp.schema.capabilities.InitializeResult
 import sh.ondr.kmcp.schema.capabilities.PromptsCapability
+import sh.ondr.kmcp.schema.capabilities.ResourcesCapability
 import sh.ondr.kmcp.schema.capabilities.ServerCapabilities
 import sh.ondr.kmcp.schema.capabilities.ToolsCapability
+import sh.ondr.kmcp.schema.core.EmptyResult
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest.GetPromptParams
 import sh.ondr.kmcp.schema.prompts.GetPromptResult
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest.ListPromptsParams
 import sh.ondr.kmcp.schema.prompts.ListPromptsResult
+import sh.ondr.kmcp.schema.resources.ListResourceTemplatesRequest.ListResourceTemplatesParams
+import sh.ondr.kmcp.schema.resources.ListResourceTemplatesResult
+import sh.ondr.kmcp.schema.resources.ListResourcesRequest.ListResourcesParams
+import sh.ondr.kmcp.schema.resources.ListResourcesResult
+import sh.ondr.kmcp.schema.resources.ReadResourceRequest.ReadResourceParams
+import sh.ondr.kmcp.schema.resources.ReadResourceResult
+import sh.ondr.kmcp.schema.resources.ResourceListChangedNotification
+import sh.ondr.kmcp.schema.resources.ResourceUpdatedNotification
+import sh.ondr.kmcp.schema.resources.ResourceUpdatedNotification.ResourceUpdatedParams
+import sh.ondr.kmcp.schema.resources.SubscribeRequest.SubscribeParams
+import sh.ondr.kmcp.schema.resources.UnsubscribeRequest.UnsubscribeParams
 import sh.ondr.kmcp.schema.tools.CallToolRequest.CallToolParams
 import sh.ondr.kmcp.schema.tools.CallToolResult
 import sh.ondr.kmcp.schema.tools.ListToolsRequest.ListToolsParams
@@ -42,11 +58,30 @@ class Server private constructor(
 	private val dispatcher: CoroutineContext,
 	private val serverName: String,
 	private val serverVersion: String,
+	builderResourceProviders: List<ResourceProvider>,
 ) : McpComponent(
 		transport = transport,
 		logger = logger,
 		coroutineContext = dispatcher,
 	) {
+	/**
+	 * Manages one or more ResourceProviders, merging resource lists and
+	 * routing resource-change callbacks into server notifications.
+	 */
+	private val resourceManager = ResourceProviderManager(
+		notifyResourceChanged = { uri ->
+			val notification = ResourceUpdatedNotification(
+				ResourceUpdatedParams(uri = uri),
+			)
+			sendNotification(notification)
+		},
+		notifyResourcesListChanged = {
+			val notification = ResourceListChangedNotification()
+			sendNotification(notification)
+		},
+		builderResourceProviders = builderResourceProviders,
+	)
+
 	/**
 	 * Dynamically adds a new tool to the server at runtime.
 	 *
@@ -101,11 +136,23 @@ class Server private constructor(
 	// -----------------------------------------------------
 
 	override suspend fun handleInitializeRequest(params: InitializeParams): InitializeResult {
+		val toolsCapability = if (tools.isNotEmpty()) ToolsCapability() else null
+		val promptsCapability = if (prompts.isNotEmpty()) PromptsCapability() else null
+		val resourcesCapability = if (resourceManager.providers.isNotEmpty()) {
+			ResourcesCapability(
+				subscribe = resourceManager.supportsSubscriptions,
+				listChanged = true,
+			)
+		} else {
+			null
+		}
+
 		return InitializeResult(
 			protocolVersion = MCP_VERSION,
 			capabilities = ServerCapabilities(
-				tools = if (tools.isNotEmpty()) ToolsCapability() else null,
-				prompts = if (prompts.isNotEmpty()) PromptsCapability() else null,
+				tools = toolsCapability,
+				prompts = promptsCapability,
+				resources = resourcesCapability,
 			),
 			serverInfo = Implementation(serverName, serverVersion),
 		)
@@ -122,8 +169,7 @@ class Server private constructor(
 	override suspend fun handleGetPromptRequest(params: GetPromptParams): GetPromptResult {
 		val promptName = params.name
 		val handler = KMCP.promptHandlers[promptName] ?: throw MethodNotFoundException("Handler for prompt $promptName not found")
-		val jsonArgs = params
-			.arguments
+		val jsonArgs = params.arguments
 			?.mapValues { JsonPrimitive(it.value) }
 			?.let { JsonObject(it) }
 			?: JsonObject(emptyMap())
@@ -145,6 +191,32 @@ class Server private constructor(
 		return ListToolsResult(tools = toolInfos)
 	}
 
+	override suspend fun handleListResourcesRequest(params: ListResourcesParams?): ListResourcesResult {
+		val resources = resourceManager.listResources()
+		return ListResourcesResult(resources = resources)
+	}
+
+	override suspend fun handleReadResourceRequest(params: ReadResourceParams): ReadResourceResult {
+		val uri = params.uri
+		val contents = resourceManager.readResource(uri) ?: throw ResourceNotFoundException("Resource not found: $uri")
+		return ReadResourceResult(contents = listOf(contents))
+	}
+
+	override suspend fun handleListResourceTemplatesRequest(params: ListResourceTemplatesParams?): ListResourceTemplatesResult {
+		val templates = resourceManager.listResourceTemplates()
+		return ListResourceTemplatesResult(resourceTemplates = templates)
+	}
+
+	override suspend fun handleSubscribeRequest(params: SubscribeParams): EmptyResult {
+		resourceManager.subscribe(params.uri)
+		return EmptyResult()
+	}
+
+	override suspend fun handleUnsubscribeRequest(params: UnsubscribeParams): EmptyResult {
+		resourceManager.removeSubscription(params.uri)
+		return EmptyResult()
+	}
+
 	/**
 	 * Builder for constructing a [Server] instance.
 	 *
@@ -159,7 +231,10 @@ class Server private constructor(
 	 *     .withPrompt(::myPromptFunction)
 	 *     .withServerInfo("MyServer", "1.2.3")
 	 *     .withLogger { line -> println(line) }
+	 *     .withResourceProvider(myLocalFileProvider)
 	 *     .build()
+	 *
+	 * server.start()
 	 * ```
 	 */
 	class Builder {
@@ -170,6 +245,7 @@ class Server private constructor(
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
 		private var builderServerName: String = "TestServer"
 		private var builderServerVersion: String = "1.0.0"
+		private val builderResourceProviders = mutableListOf<ResourceProvider>()
 		private var used = false
 
 		/**
@@ -220,8 +296,15 @@ class Server private constructor(
 			}
 
 		/**
+		 * Registers a resource provider that can list/read resources.
+		 */
+		fun withResourceProvider(provider: ResourceProvider) =
+			apply {
+				this.builderResourceProviders.add(provider)
+			}
+
+		/**
 		 * Sets the coroutine context (or dispatcher) for the server's internal coroutines.
-		 *
 		 * Defaults to [Dispatchers.Default] if not set.
 		 */
 		fun withDispatcher(dispatcher: CoroutineContext) =
@@ -231,8 +314,6 @@ class Server private constructor(
 
 		/**
 		 * Adds a logger callback for incoming/outgoing messages.
-		 *
-		 * Useful for debugging or auditing. If not set, no logging occurs.
 		 */
 		fun withLogger(logger: suspend (String) -> Unit) =
 			apply {
@@ -241,7 +322,6 @@ class Server private constructor(
 
 		/**
 		 * Sets the server's name and version, reported in the `initialize` response.
-		 *
 		 * Defaults to "TestServer" and "1.0.0" if not provided.
 		 */
 		fun withServerInfo(
@@ -270,6 +350,7 @@ class Server private constructor(
 				dispatcher = builderDispatcher,
 				serverName = builderServerName,
 				serverVersion = builderServerVersion,
+				builderResourceProviders = builderResourceProviders.toList(),
 			)
 		}
 	}
