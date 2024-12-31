@@ -151,10 +151,10 @@ class MultiResourceProviderTest {
 				clientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"3","params":{"uri":"file://fileA.txt"}}""")
 				serverIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"3","params":{"uri":"file://fileA.txt"}}""")
 				serverOutgoing(
-					"""{"jsonrpc":"2.0","id":"3","result":{"contents":[{"method":"sh.ondr.kmcp.schema.resources.ResourceContents.Text","uri":"file://fileA.txt","mimeType":"text/plain","text":"Hello from A!"}]}}""",
+					"""{"jsonrpc":"2.0","id":"3","result":{"contents":[{"uri":"file://fileA.txt","mimeType":"text/plain","text":"Hello from A!"}]}}""",
 				)
 				clientIncoming(
-					"""{"jsonrpc":"2.0","id":"3","result":{"contents":[{"method":"sh.ondr.kmcp.schema.resources.ResourceContents.Text","uri":"file://fileA.txt","mimeType":"text/plain","text":"Hello from A!"}]}}""",
+					"""{"jsonrpc":"2.0","id":"3","result":{"contents":[{"uri":"file://fileA.txt","mimeType":"text/plain","text":"Hello from A!"}]}}""",
 				)
 			}
 			assertLinesMatch(expectedReadALogs, log, "resources/read test")
