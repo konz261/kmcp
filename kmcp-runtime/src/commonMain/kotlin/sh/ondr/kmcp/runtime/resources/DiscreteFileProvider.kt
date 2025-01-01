@@ -37,6 +37,7 @@ class DiscreteFileProvider(
 	private val fileSystem: FileSystem,
 	private val rootDir: Path,
 	initialFiles: List<File> = emptyList(),
+	private val mimeTypeDetector: MimeTypeDetector = MimeTypeDetector { "text/plain" },
 ) : ResourceProvider() {
 	override val supportsSubscriptions: Boolean = true
 
@@ -52,7 +53,7 @@ class DiscreteFileProvider(
 			val resolvedPath = rootDir.resolve(discreteFile.relativePath)
 			val fallbackName = resolvedPath.name
 			val fallbackDesc = "File at ${discreteFile.relativePath}"
-			val fallbackMime = guessMimeType(fallbackName)
+			val fallbackMime = mimeTypeDetector.detect(fallbackName)
 
 			Resource(
 				uri = "file://${discreteFile.relativePath}",
@@ -87,7 +88,7 @@ class DiscreteFileProvider(
 
 			// Either use the knownEntry.mimeType or guess
 			val fallbackName = fullPath.name
-			val mimeType = knownEntry.mimeType ?: guessMimeType(fallbackName)
+			val mimeType = knownEntry.mimeType ?: mimeTypeDetector.detect(fallbackName)
 
 			// Simple text vs. blob check
 			if (mimeType.startsWith("text")) {
@@ -146,11 +147,5 @@ class DiscreteFileProvider(
 		if (files.any { it.relativePath == relativePath }) {
 			onResourceChange("file://$relativePath")
 		}
-	}
-
-	// Everything is "text/plain" for now
-	// TODO implement proper mime type detection
-	private fun guessMimeType(relativePath: String): String {
-		return "text/plain"
 	}
 }
