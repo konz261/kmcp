@@ -28,8 +28,10 @@ import sh.ondr.kmcp.schema.resources.SubscribeRequest
 import sh.ondr.kmcp.server
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class DiscreteFileProviderTest {
 	@Test
@@ -130,24 +132,56 @@ class DiscreteFileProviderTest {
 
 			// Initially empty
 			val initialResources = provider.listResources()
-			assertEquals(0, initialResources.size)
+			assertEquals(0, initialResources.size, "No files should be listed initially.")
 
-			// Add one file
-			provider.addFile(
+			// 1) Add one file
+			val addFirstResult = provider.addFile(
 				File(
 					relativePath = "one.txt",
 					name = "one.txt",
 					description = "File one",
 				),
 			)
-			val afterAdd = provider.listResources()
-			assertEquals(1, afterAdd.size)
-			assertEquals("file://one.txt", afterAdd.first().uri)
+			assertTrue(addFirstResult, "Expected true when adding a brand-new file.")
 
-			// Remove it again
-			provider.removeFile("one.txt")
+			// Verify that the file now shows up
+			val afterAdd = provider.listResources()
+			assertEquals(1, afterAdd.size, "Should list the newly added file.")
+			val resource = afterAdd.first()
+			assertEquals("file://one.txt", resource.uri)
+			assertEquals("one.txt", resource.name)
+			assertEquals("File one", resource.description)
+
+			// 2) Try adding the same file again
+			val addDuplicateResult = provider.addFile(
+				File(
+					relativePath = "one.txt",
+					name = "one.txt",
+					description = "File one",
+				),
+			)
+			assertFalse(
+				addDuplicateResult,
+				"Expected false since 'one.txt' was already in the list.",
+			)
+			// The resource list should remain the same
+			val afterAddDuplicate = provider.listResources()
+			assertEquals(1, afterAddDuplicate.size, "Still only one resource after duplicate add.")
+
+			// 3) Remove the file
+			val removeFirstResult = provider.removeFile("one.txt")
+			assertTrue(removeFirstResult, "Expected true for removing existing file 'one.txt'.")
 			val afterRemove = provider.listResources()
-			assertEquals(0, afterRemove.size)
+			assertEquals(0, afterRemove.size, "No resources left after removing the only file.")
+
+			// 4) Try removing a file that no longer exists
+			val removeAgainResult = provider.removeFile("one.txt")
+			assertFalse(
+				removeAgainResult,
+				"Expected false when removing a file that isn't in the list anymore.",
+			)
+			val afterRemoveAgain = provider.listResources()
+			assertEquals(0, afterRemoveAgain.size, "Should still have 0 resources after removing a non-existent file.")
 		}
 
 	@Test

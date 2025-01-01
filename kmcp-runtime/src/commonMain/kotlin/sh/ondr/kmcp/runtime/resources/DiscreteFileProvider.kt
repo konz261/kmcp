@@ -110,21 +110,31 @@ class DiscreteFileProvider(
 	 * Dynamically adds a file to this provider's known files list.
 	 * If it wasn't in the list before, triggers onResourcesListChanged() so that clients
 	 * can be notified of an updated resource listing (if subscriptions are in place).
+	 *
+	 * @return `true` if the file was added, `false` if it was already in the list.
 	 */
-	suspend fun addFile(file: File) {
-		if (files.none { it.relativePath == file.relativePath }) {
+	suspend fun addFile(file: File): Boolean {
+		return if (files.none { it.relativePath == file.relativePath }) {
 			files += file
 			onResourcesListChanged()
+			true
+		} else {
+			false
 		}
 	}
 
 	/**
 	 * Removes a file from the known list, triggering onResourcesListChanged() if removed.
+	 *
+	 * @return `true` if the file was removed, `false` if it wasn't in the list.
 	 */
-	suspend fun removeFile(relativePath: String) {
+	suspend fun removeFile(relativePath: String): Boolean {
 		val removed = files.removeAll { it.relativePath == relativePath }
-		if (removed) {
+		return if (removed) {
 			onResourcesListChanged()
+			true
+		} else {
+			false
 		}
 	}
 
