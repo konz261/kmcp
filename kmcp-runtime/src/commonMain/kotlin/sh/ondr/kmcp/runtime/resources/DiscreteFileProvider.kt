@@ -36,25 +36,29 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 class DiscreteFileProvider(
 	private val fileSystem: FileSystem,
 	private val rootDir: Path,
-	knownFiles: List<String> = emptyList(),
+	initialFiles: List<File> = emptyList(),
 ) : ResourceProvider() {
 	override val supportsSubscriptions: Boolean = true
 
-	private val files = knownFiles.toMutableList()
+	private val files = initialFiles.toMutableList()
 
 	/**
 	 * Lists the currently known, discrete resources. Each resource is associated with a
 	 * `file://relativePath` URI.
 	 */
 	override suspend fun listResources(): List<Resource> {
-		return files.map { relativePath ->
-			val fullPath = rootDir.resolve(relativePath)
-			val name = fullPath.name
+		return files.map { discreteFile ->
+			// If user didn't provide a custom name, fallback to the actual file name from the path
+			val resolvedPath = rootDir.resolve(discreteFile.relativePath)
+			val fallbackName = resolvedPath.name
+			val fallbackDesc = "File at ${discreteFile.relativePath}"
+			val fallbackMime = guessMimeType(fallbackName)
+
 			Resource(
-				uri = "file://$relativePath",
-				name = name,
-				description = "File at $relativePath",
-				mimeType = guessMimeType(name),
+				uri = "file://${discreteFile.relativePath}",
+				name = discreteFile.name ?: fallbackName,
+				description = discreteFile.description ?: fallbackDesc,
+				mimeType = discreteFile.mimeType ?: fallbackMime,
 			)
 		}
 	}
@@ -69,8 +73,9 @@ class DiscreteFileProvider(
 			if (!uri.startsWith("file://")) return@withContext null
 			val relativePath = uri.removePrefix("file://")
 
-			// If it's not in our known files list, then we treat it as "not found".
-			if (!files.contains(relativePath)) return@withContext null
+			// If it’s not in our known list, treat it as not found
+			val knownEntry = files.find { it.relativePath == relativePath }
+				?: return@withContext null
 
 			val fullPath = rootDir.resolve(relativePath)
 			if (!fileSystem.exists(fullPath)) return@withContext null
@@ -80,8 +85,11 @@ class DiscreteFileProvider(
 			val source = fileSystem.source(fullPath)
 			val data = source.buffer().use { it.readByteArray() }
 
-			// For simplicity, guess text if it’s "text/" and otherwise return a blob.
-			val mimeType = guessMimeType(relativePath)
+			// Either use the knownEntry.mimeType or guess
+			val fallbackName = fullPath.name
+			val mimeType = knownEntry.mimeType ?: guessMimeType(fallbackName)
+
+			// Simple text vs. blob check
 			if (mimeType.startsWith("text")) {
 				val text = runCatching { data.decodeToString() }.getOrNull() ?: return@withContext null
 				ResourceContents.Text(
@@ -103,9 +111,9 @@ class DiscreteFileProvider(
 	 * If it wasn't in the list before, triggers onResourcesListChanged() so that clients
 	 * can be notified of an updated resource listing (if subscriptions are in place).
 	 */
-	suspend fun addFile(relativePath: String) {
-		if (!files.contains(relativePath)) {
-			files += relativePath
+	suspend fun addFile(file: File) {
+		if (files.none { it.relativePath == file.relativePath }) {
+			files += file
 			onResourcesListChanged()
 		}
 	}
@@ -114,7 +122,8 @@ class DiscreteFileProvider(
 	 * Removes a file from the known list, triggering onResourcesListChanged() if removed.
 	 */
 	suspend fun removeFile(relativePath: String) {
-		if (files.remove(relativePath)) {
+		val removed = files.removeAll { it.relativePath == relativePath }
+		if (removed) {
 			onResourcesListChanged()
 		}
 	}
@@ -124,7 +133,7 @@ class DiscreteFileProvider(
 	 * `file://relativePath`, this triggers a `notifications/resources/updated`.
 	 */
 	suspend fun notifyResourceUpdated(relativePath: String) {
-		if (files.contains(relativePath)) {
+		if (files.any { it.relativePath == relativePath }) {
 			onResourceChange("file://$relativePath")
 		}
 	}

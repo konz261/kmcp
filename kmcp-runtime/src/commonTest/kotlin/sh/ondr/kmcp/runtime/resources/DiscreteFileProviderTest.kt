@@ -44,11 +44,16 @@ class DiscreteFileProviderTest {
 			fs.write(rootDir.resolve(fileName)) {
 				writeUtf8(fileContent)
 			}
+			val file = File(
+				relativePath = fileName,
+				name = "Main.kt",
+				description = "Main file",
+			)
 
 			val provider = DiscreteFileProvider(
 				fileSystem = fs,
 				rootDir = rootDir,
-				knownFiles = listOf(fileName),
+				initialFiles = listOf(file),
 			)
 
 			val resources = provider.listResources()
@@ -79,7 +84,7 @@ class DiscreteFileProviderTest {
 			val provider = DiscreteFileProvider(
 				fileSystem = fs,
 				rootDir = rootDir,
-				knownFiles = emptyList(),
+				initialFiles = emptyList(),
 			)
 
 			val resources = provider.listResources()
@@ -97,7 +102,7 @@ class DiscreteFileProviderTest {
 			val provider = DiscreteFileProvider(
 				fileSystem = fs,
 				rootDir = rootDir,
-				knownFiles = emptyList(),
+				initialFiles = emptyList(),
 			)
 
 			// Try to read "file://idontexist.txt"
@@ -120,7 +125,7 @@ class DiscreteFileProviderTest {
 			val provider = DiscreteFileProvider(
 				fileSystem = fs,
 				rootDir = rootDir,
-				knownFiles = emptyList(),
+				initialFiles = emptyList(),
 			)
 
 			// Initially empty
@@ -128,7 +133,13 @@ class DiscreteFileProviderTest {
 			assertEquals(0, initialResources.size)
 
 			// Add one file
-			provider.addFile("one.txt")
+			provider.addFile(
+				File(
+					relativePath = "one.txt",
+					name = "one.txt",
+					description = "File one",
+				),
+			)
 			val afterAdd = provider.listResources()
 			assertEquals(1, afterAdd.size)
 			assertEquals("file://one.txt", afterAdd.first().uri)
@@ -156,6 +167,11 @@ class DiscreteFileProviderTest {
 			fs.write(rootDir.resolve("hello.txt")) {
 				writeUtf8("Hello from top-level file!")
 			}
+			val topLevelFile = File(
+				relativePath = "hello.txt",
+				name = "hello.txt",
+				description = "File at hello.txt",
+			)
 
 			// Sub-folder + file
 			val subFolder = rootDir.resolve("sub/folder")
@@ -163,14 +179,19 @@ class DiscreteFileProviderTest {
 			fs.write(subFolder.resolve("bye.txt")) {
 				writeUtf8("Bye from sub-folder!")
 			}
+			val subFile = File(
+				relativePath = "sub/folder/bye.txt",
+				name = "bye.txt",
+				description = "File at sub/folder/bye.txt",
+			)
 
 			// 2) Build a DiscreteFileProvider with known files that includes the sub-folder path
 			val provider = DiscreteFileProvider(
 				fileSystem = fs,
 				rootDir = rootDir,
-				knownFiles = listOf(
-					"hello.txt",
-					"sub/folder/bye.txt",
+				initialFiles = listOf(
+					topLevelFile,
+					subFile,
 				),
 			)
 
