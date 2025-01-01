@@ -41,7 +41,7 @@ abstract class ResourceProvider {
 	/**
 	 * Returns the list of currently available resources.
 	 */
-	abstract suspend fun listResources(): List<Resource>
+	open suspend fun listResources(): List<Resource> = listOf()
 
 	/**
 	 * Fetches the contents of the given resource URI, or `null` if unavailable.
@@ -51,5 +51,5 @@ abstract class ResourceProvider {
 	/**
 	 * Returns any resource templates this provider supports, e.g. `file:///{path}`.
 	 */
-	abstract suspend fun listResourceTemplates(): List<ResourceTemplate>
+	open suspend fun listResourceTemplates(): List<ResourceTemplate> = listOf()
 }
