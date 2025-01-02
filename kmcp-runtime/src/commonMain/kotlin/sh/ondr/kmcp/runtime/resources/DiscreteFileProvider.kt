@@ -108,9 +108,8 @@ class DiscreteFileProvider(
 		}
 
 	/**
-	 * Dynamically adds a file to this provider's known files list.
-	 * If it wasn't in the list before, triggers onResourcesListChanged() so that clients
-	 * can be notified of an updated resource listing (if subscriptions are in place).
+	 * Adds a file to the known list, triggering onResourcesListChanged() if
+	 * the file wasn't in the list before.
 	 *
 	 * @return `true` if the file was added, `false` if it was already in the list.
 	 */
@@ -136,16 +135,6 @@ class DiscreteFileProvider(
 			true
 		} else {
 			false
-		}
-	}
-
-	/**
-	 * Notifies that a file has been updated. If a client is subscribed to changes for
-	 * `file://relativePath`, this triggers a `notifications/resources/updated`.
-	 */
-	suspend fun notifyResourceUpdated(relativePath: String) {
-		if (files.any { it.relativePath == relativePath }) {
-			onResourceChange("file://$relativePath")
 		}
 	}
 }

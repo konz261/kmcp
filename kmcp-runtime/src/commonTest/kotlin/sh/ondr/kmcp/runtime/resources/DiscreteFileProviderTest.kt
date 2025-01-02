@@ -393,7 +393,7 @@ class DiscreteFileProviderTest {
 			log.clear()
 
 			// (G) Notify update
-			provider.notifyResourceUpdated("sub/folder/bye.txt")
+			provider.onResourceChange("file://sub/folder/bye.txt")
 			advanceUntilIdle()
 
 			// Verify logs for the "resources/updated" notification, etc.

@@ -19,13 +19,13 @@ abstract class ResourceProvider {
 	/**
 	 * Implementations should call this when a specific resource changes. By default, no-op.
 	 */
-	protected var onResourceChange: suspend (uri: String) -> Unit = {}
+	internal var onResourceChange: suspend (uri: String) -> Unit = {}
 
 	/**
 	 * Implementations should call this when the overall list of resources changes (new ones added, removed, etc.).
 	 * By default, no-op.
 	 */
-	protected var onResourcesListChanged: suspend () -> Unit = {}
+	internal var onResourcesListChanged: suspend () -> Unit = {}
 
 	/**
 	 * Sets callbacks for resource change notifications. Called by the server/manager.
