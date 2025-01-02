@@ -25,6 +25,7 @@ import sh.ondr.kmcp.schema.resources.ReadResourceRequest.ReadResourceParams
 import sh.ondr.kmcp.schema.resources.ReadResourceResult
 import sh.ondr.kmcp.schema.resources.ResourceContents
 import sh.ondr.kmcp.schema.resources.SubscribeRequest
+import sh.ondr.kmcp.schema.resources.UnsubscribeRequest
 import sh.ondr.kmcp.server
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -402,5 +403,32 @@ class DiscreteFileProviderTest {
 				clientIncoming("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file://sub/folder/bye.txt"}}""")
 			}
 			assertLinesMatch(expectedNotificationLogs, log, "resource updated notification logs")
+			log.clear()
+
+			// (H) Unsubscribe from the sub/folder file
+			val unsubReq = client.sendRequest { id ->
+				UnsubscribeRequest(
+					id = id,
+					params = UnsubscribeRequest.UnsubscribeParams(uri = "file://sub/folder/bye.txt"),
+				)
+			}
+			advanceUntilIdle()
+			val unsubResult = unsubReq.result?.deserializeResult<EmptyResult>()
+			assertNotNull(unsubResult, "Expected an EmptyResult from unsubscribe")
+
+			val expectedUnsubscribeLogs = logLines {
+				clientOutgoing("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"7","params":{"uri":"file://sub/folder/bye.txt"}}""")
+				serverIncoming("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"7","params":{"uri":"file://sub/folder/bye.txt"}}""")
+				serverOutgoing("""{"jsonrpc":"2.0","id":"7","result":{}}""")
+				clientIncoming("""{"jsonrpc":"2.0","id":"7","result":{}}""")
+			}
+			assertLinesMatch(expectedUnsubscribeLogs, log, "unsubscribe logs")
+			log.clear()
+
+			// (I) Verify no notification is received after unsubscribing
+			provider.onResourceChange("file://sub/folder/bye.txt")
+			advanceUntilIdle()
+
+			assertTrue(log.isEmpty(), "No further notifications should appear after unsubscribing.")
 		}
 }
