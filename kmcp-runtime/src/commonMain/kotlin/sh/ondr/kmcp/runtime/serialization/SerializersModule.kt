@@ -16,6 +16,7 @@ import sh.ondr.kmcp.schema.logging.SetLoggingLevelRequest
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest
 import sh.ondr.kmcp.schema.prompts.PromptListChangedNotification
+import sh.ondr.kmcp.schema.resources.ListResourceTemplatesRequest
 import sh.ondr.kmcp.schema.resources.ListResourcesRequest
 import sh.ondr.kmcp.schema.resources.ReadResourceRequest
 import sh.ondr.kmcp.schema.resources.ResourceListChangedNotification
@@ -38,6 +39,7 @@ val kmcpSerializersModule = SerializersModule {
 		subclass(PingRequest::class)
 		subclass(ListPromptsRequest::class)
 		subclass(ListResourcesRequest::class)
+		subclass(ListResourceTemplatesRequest::class)
 		subclass(ReadResourceRequest::class)
 		subclass(SubscribeRequest::class)
 		subclass(UnsubscribeRequest::class)
