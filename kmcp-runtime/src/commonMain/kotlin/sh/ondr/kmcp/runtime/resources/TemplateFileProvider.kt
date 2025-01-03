@@ -18,28 +18,28 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 // TODO Allow dynamic configuration
 
 /**
- * A [ResourceProvider] that exposes a URI template, allowing arbitrary file paths
- * under [rootDir].
- *
- * For example, it might advertise a simple level 1 resource template like `file:///{path}`
+ * A [ResourceProvider] that exposes [rootDir] through the URI template:
+ * ```
+ * file:///{path}
+ * ```
+ * to the client, where `path` is a relative path under [rootDir].
  *
  * Example usage:
  * ```
  * val templateProvider = TemplateFileProvider(
  *     fileSystem = FileSystem.SYSTEM,
- *     rootDir = "/some/local/folder".toPath(),
- *     template = "file:///{path}",
+ *     rootDir = "/app/resources".toPath(),
  * )
  * ```
  *
- * Then the client can read resources such as `file:///sub/folder/example.txt`.
+ * The client can then read resources such as `file:///sub/folder/example.txt`, which will
+ * be resolved to `/app/resources/sub/folder/example.txt`.
  */
 class TemplateFileProvider(
 	private val fileSystem: FileSystem,
 	private val rootDir: Path,
-	private val template: String,
 	private val name: String = "Arbitrary local file access",
-	private val description: String = "Allows reading any file under $rootDir by specifying {path}",
+	private val description: String = "Allows reading any file by specifying {path}",
 	private val mimeTypeDetector: MimeTypeDetector = MimeTypeDetector {
 		"text/plain"
 	},
@@ -52,7 +52,7 @@ class TemplateFileProvider(
 	override suspend fun listResourceTemplates(): List<ResourceTemplate> {
 		return listOf(
 			ResourceTemplate(
-				uriTemplate = template,
+				uriTemplate = "file:///{path}",
 				name = name,
 				description = description,
 			),

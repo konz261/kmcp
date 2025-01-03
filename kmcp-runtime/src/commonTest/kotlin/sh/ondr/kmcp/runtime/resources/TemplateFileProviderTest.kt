@@ -49,7 +49,6 @@ class TemplateFileProviderTest {
 			val provider = TemplateFileProvider(
 				fileSystem = fs,
 				rootDir = rootDir,
-				template = "file:///{path}",
 			)
 
 			val resources = provider.listResources()
@@ -66,7 +65,6 @@ class TemplateFileProviderTest {
 			val provider = TemplateFileProvider(
 				fileSystem = fs,
 				rootDir = rootDir,
-				template = "file:///{path}",
 			)
 
 			val templates = provider.listResourceTemplates()
@@ -94,7 +92,6 @@ class TemplateFileProviderTest {
 			val provider = TemplateFileProvider(
 				fileSystem = fs,
 				rootDir = rootDir,
-				template = "file:///{path}",
 			)
 
 			// Attempt to read "file:///../outside/secret.txt"
@@ -118,7 +115,6 @@ class TemplateFileProviderTest {
 			val provider = TemplateFileProvider(
 				fileSystem = fs,
 				rootDir = rootDir,
-				template = "file:///{path}",
 			)
 
 			// Try to read the directory as if it were a file resource
@@ -149,7 +145,6 @@ class TemplateFileProviderTest {
 			val provider = TemplateFileProvider(
 				fileSystem = fs,
 				rootDir = rootDir,
-				template = "file:///{path}",
 			)
 
 			// 3) Start a server with that provider
@@ -220,10 +215,10 @@ class TemplateFileProviderTest {
 				clientOutgoing("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"3","params":{}}""")
 				serverIncoming("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"3","params":{}}""")
 				serverOutgoing(
-					"""{"jsonrpc":"2.0","id":"3","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Arbitrary local file access","description":"Allows reading any file under /templateRoot by specifying {path}"}]}}""",
+					"""{"jsonrpc":"2.0","id":"3","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Arbitrary local file access","description":"Allows reading any file by specifying {path}"}]}}""",
 				)
 				clientIncoming(
-					"""{"jsonrpc":"2.0","id":"3","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Arbitrary local file access","description":"Allows reading any file under /templateRoot by specifying {path}"}]}}""",
+					"""{"jsonrpc":"2.0","id":"3","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Arbitrary local file access","description":"Allows reading any file by specifying {path}"}]}}""",
 				)
 			}
 			assertLinesMatch(expectedTplLogs, log, "list resource templates logs")
