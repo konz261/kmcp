@@ -18,14 +18,14 @@
 
 KMCP is a compiler-driven [Model Context Protocol](https://modelcontextprotocol.io) framework that lets you build MCP apps for Kotlin Multiplatform targets (native, JVM, Android, iOS and JS). It automatically generates the runtime glue and schemas that LLMs need to interact with your code.
 
-Tools and prompts are just functions - simply add annotations and let KMCP handle all the boiler-plate:
+Tools and prompts are functions - simply add annotations and let KMCP handle all the boiler-plate:
 
 ```kotlin
 @Tool
 fun greet(name: String) = "Hello, $name!".toTextContent()
 ```
 
-Done! Now, you just need to register the tool and start the server:
+Done! Now, just register the tool and start the server:
 
 ```kotlin
 fun main() = runBlocking {
@@ -46,18 +46,23 @@ That's it! Compile the above code and link the native binary to Claude Desktop b
 
 The `greet` tool will now be exposed over MCP.
 
-## Installation
+<br>
 
-Just add this plugin:
+ **KMCP is in early-development. This API will change significantly..**
+
+
+# Installation
+
 ```
 plugins {
-  id("sh.ondr.kmcp") version "0.1.0"
+  id("sh.ondr.kmcp") version "0.2.1"
 }
 ```
 
-## Examples
 
-### Tools
+# Examples
+
+## Tools
 
 KMCP supports `@Tool` functions with various argument types, including
   * Primitives
@@ -98,7 +103,7 @@ fun sendEmail(
 
 When clients call `tools/list`, they see a JSON schema describing the tool's input:
 
-```
+```json
 {
   "name": "sendEmail",
   "description": "Sends an email to all recipients",
@@ -135,8 +140,9 @@ When clients call `tools/list`, they see a JSON schema describing the tool's inp
 
 Clients can now send a `tools/call` request with a JSON object describing the above schema. Invocation and type-safe deserialization will be handled by KMCP.
 
+<br>
 
-### Prompts
+## Prompts
 
 Just annotate functions with `@Prompt` and return a `GetPromptResult`. Arguments must be Strings:
 
@@ -148,24 +154,203 @@ fun codeReviewPrompt(code: String) = buildPrompt {
 }
 ```
 
-### Resources (Coming Soon)
+<br>
 
-Should be ready by next week.
+## Resources
 
-## How It Works
+Resources are provided by a `ResourceProvider`. You can either create your own `ResourceProvider` or use one of the 2 default implementations:
+- `DiscreteFileProvider`
+  - Let's you add/remove a discrete set of files that will be exposed to the client.
+  - Handles `resources/list` requests.
+  - Handles `resources/read` requests by reading contents from disk via `okio`.
+  - Sends `notifications/resources/list_changed` when files are added or removed.
+  - Supports subscriptions (but changes to files have to be marked manually for now).
+    
+- `TemplateFileProvider`
+  - Exposes a given `rootDir` through a URI template.
+  - Handles `resources/templates/list`.
+  - Handles `resources/read` requests by reading contents from disk via `okio`.
+  - Supports subscriptions (but changes to files have to be marked manually for now).
+
+⚠️ **Use those providers only in a sand-boxed environment. They are NOT production-ready.** ⚠️ 
+
+### DiscreteFileProvider
+
+Let's say you want to expose 2 files:
+- /app/resources/cpp/my_program.h
+- /app/resources/cpp/my_program.cpp
+
+You would first create the following provider:
+```kotlin
+val fileProvider = DiscreteFileProvider(
+  fileSystem = FileSystem.SYSTEM,
+  rootDir = "/app/resources".toPath(),
+  initialFiles = listOf(
+    File(
+      relativePath = "cpp/my_program.h",
+      mimeType = "text/x-c++",
+    ),
+    File(
+      relativePath = "cpp/my_program.cpp",
+      mimeType = "text/x-c++",
+    ),
+  )
+)
+```
+
+And add it when building the server:
+```kotlin
+val server = Server.Builder()
+  .withResourceProvider(fileProvider)
+  .withTransport(StdioTransport())
+  .build()
+```
+
+A client calling `resources/list` will then receive:
+```json
+{
+  "resources": [
+    {
+      "uri": "file://cpp/my_program.h",
+      "name": "my_program.h",
+      "description": "File at cpp/my_program.h",
+      "mimeType": "text/x-c++"
+    },
+    {
+      "uri": "file://cpp/my_program.cpp",
+      "name": "my_program.cpp",
+      "description": "File at cpp/my_program.cpp",
+      "mimeType": "text/x-c++"
+    }
+  ]
+}
+```
+
+A client sending a `resources/read` request to fetch the contents of the source file would receive:
+```json
+{
+  "contents": [
+    {
+      "uri": "file://cpp/my_program.cpp",
+      "mimeType": "text/x-c++",
+      "text": "int main(){}"
+    }
+  ]
+}
+```
+
+You can also add files at runtime via
+```kotlin
+fileProvider.addFile(
+  File(
+    relativePath = "cpp/README.txt",
+    mimeType = "text/plain",
+  )
+)
+```
+or remove files by specifying the relative path:
+```kotlin
+fileProvider.removeFile("cpp/my_program.h")
+```
+
+Both `addFile` and `removeFile` will send a `notifications/resources/list_changed` notification.
+
+<br>
+
+When making changes to a file, always call
+```kotlin
+fileProvider.onResourceChange("cpp/my_program.h")
+```
+
+If (and only if) the client subscribed to this resource, this will send a `notifications/resources/updated` notification to the client.
+
+<br>
+
+### TemplateFileProvider
+
+If you want to expose a whole directory, you can do:
+```kotlin
+val templateFileProvider = TemplateFileProvider(
+  fileSystem = FileSystem.SYSTEM,
+  rootDir = "/app/resources".toPath(),
+)
+```
+
+A client calling `resources/templates/list` will receive:
+```json
+{
+  "resourceTemplates": [
+    {
+      "uriTemplate": "file:///{path}",
+      "name": "Arbitrary local file access",
+      "description": "Allows reading any file by specifying {path}"
+    }
+  ]
+}
+```
+
+The client can then issue a `resources/read` request by providing the `path`:
+```json
+{
+  "method": "resources/read",
+  "params": {
+    "uri": "file:///cpp/my_program.cpp"
+  }
+}
+```
+
+This will read from `/app/resources/cpp/my_program.cpp` and return the result:
+```json
+{
+  "contents": [
+    {
+      "uri": "file:///cpp/my_program.cpp",
+      "mimeType": "text/plain",
+      "text": "int main(){}"
+    }
+  ]
+}
+```
+
+Note the incorrect `text/plain` here - proper MIME detection will be added at some point.
+
+Similarly to `DiscreteFileProvider`, when modifying a resource, call
+```kotlin
+templateFileProvider.onResourceChange("cpp/my_program.h")
+```
+to trigger the notification in case a client is subscribed to this resource.
+
+<br>
+
+## TODO
+```
+✅ Add resource capability
+✅ Suspendable logger, @Tool and @Prompt functions
+✅ Request cancellations
+⬜ Pagination
+⬜ Sampling
+⬜ Completions
+⬜ Roots
+⬜ Support logging levels
+⬜ Proper version negotiation
+⬜ Emit progress notifications from @Tool functions
+⬜ Proper MIME detection
+⬜ Add FileWatcher to automate resources/updated nofications
+⬜ HTTP-SSE transport
+⬜ Add references, property descriptions and validation keywords to the [JSON schema](https://github.com/ondrsh/kotlin-json-schema/tree/main)
+```
+
+<br>
+
+## How KMCP Works
 
 - Annotated `@Tool` and `@Prompt` functions are processed at compile time.
 - KMCP generates schemas, handlers, and registrations automatically.
 - Generated code is injected during the IR phase.
 - If you mess something up, you (hopefully) get a compile-time error.
 
-## Limitations
 
-- **KMCP is currently experimental and in early development. Use at your own risk.**
-- Many MCP features (notifications, pagination, roots, sampling, resources) are still missing, but will be added.
-- @Tool and @Prompt functions can't be suspendable at the moment. This will be fixed.
-- The JSON schema doesn't provide references, property descriptions or validation keywords as of today, but this [will be added](https://github.com/ondrsh/kotlin-json-schema/tree/main)
-- Only Stdio transport for now.
+<br>
 
 ## Contributing
 Issues and pull requests are welcome.
