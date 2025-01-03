@@ -29,40 +29,49 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class MultiResourceProviderTest {
+class ResourceProviderManagerTest {
 	@Test
-	fun testMultipleLocalFileProvidersWithLogs() =
+	fun testMultipleDiscreteProvidersWithLogs() =
 		runTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			// Prepare a FakeFileSystem
 			val fs = FakeFileSystem()
 
 			// Root A
 			val rootA = "/rootA".toPath()
 			fs.createDirectories(rootA)
+			// File A
 			val fileAName = "fileA.txt"
 			fs.write(rootA.resolve(fileAName)) { writeUtf8("Hello from A!") }
+			val fileA = File(
+				relativePath = fileAName,
+				name = fileAName,
+				description = "File in rootA",
+			)
 
 			// Root B
 			val rootB = "/rootB".toPath()
 			fs.createDirectories(rootB)
+			// File B
 			val fileBName = "fileB.txt"
 			fs.write(rootB.resolve(fileBName)) { writeUtf8("Hello from B!") }
+			val fileB = File(
+				relativePath = fileBName,
+				name = fileBName,
+				description = "File in rootB",
+			)
 
-			// Two providers
-			val providerA = LocalFileProvider(
+			// Create providers
+			val providerA = DiscreteFileProvider(
 				fileSystem = fs,
 				rootDir = rootA,
-				fileProviderMode = LocalFileProviderMode.DISCRETE,
-				knownFiles = listOf(fileAName),
+				initialFiles = listOf(fileA),
 			)
-			val providerB = LocalFileProvider(
+			val providerB = DiscreteFileProvider(
 				fileSystem = fs,
 				rootDir = rootB,
-				fileProviderMode = LocalFileProviderMode.DISCRETE,
-				knownFiles = listOf(fileBName),
+				initialFiles = listOf(fileB),
 			)
 
 			// Create a server that has these two providers
@@ -74,7 +83,6 @@ class MultiResourceProviderTest {
 				.withResourceProvider(providerA)
 				.withResourceProvider(providerB)
 				.build()
-
 			server.start()
 
 			// Create client
@@ -84,7 +92,6 @@ class MultiResourceProviderTest {
 				.withLogger { line -> log.client(line) }
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
-
 			client.start()
 
 			// 1) Initialization
@@ -94,10 +101,7 @@ class MultiResourceProviderTest {
 
 			// 2) List resources
 			val listRequestResp = client.sendRequest { reqId ->
-				ListResourcesRequest(
-					id = reqId,
-					params = ListResourcesRequest.ListResourcesParams(),
-				)
+				ListResourcesRequest(id = reqId, params = ListResourcesRequest.ListResourcesParams())
 			}
 			advanceUntilIdle()
 
@@ -105,7 +109,7 @@ class MultiResourceProviderTest {
 			val listResourcesResult = listRequestResp.result?.deserializeResult<ListResourcesResult>()
 			assertNotNull(listResourcesResult)
 			val resourceList = listResourcesResult.resources
-			// Expect 2 resources
+			// Expect exactly 2 resources, one from each provider.
 			assertEquals(2, resourceList.size)
 
 			// 3) Check logs
@@ -113,23 +117,20 @@ class MultiResourceProviderTest {
 				clientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
 				serverIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
 				serverOutgoing(
-					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://fileA.txt","name":"fileA.txt","description":"A file at fileA.txt","mimeType":"text/plain"},{"uri":"file://fileB.txt","name":"fileB.txt","description":"A file at fileB.txt","mimeType":"text/plain"}]}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://fileA.txt","name":"fileA.txt","description":"File in rootA","mimeType":"text/plain"},{"uri":"file://fileB.txt","name":"fileB.txt","description":"File in rootB","mimeType":"text/plain"}]}}""",
 				)
 				clientIncoming(
-					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://fileA.txt","name":"fileA.txt","description":"A file at fileA.txt","mimeType":"text/plain"},{"uri":"file://fileB.txt","name":"fileB.txt","description":"A file at fileB.txt","mimeType":"text/plain"}]}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://fileA.txt","name":"fileA.txt","description":"File in rootA","mimeType":"text/plain"},{"uri":"file://fileB.txt","name":"fileB.txt","description":"File in rootB","mimeType":"text/plain"}]}}""",
 				)
 			}
 			assertLinesMatch(expectedListLogs, log, "resources/list test")
-
 			log.clear()
 
 			// 4) Read resource fileA
 			val readAResp = client.sendRequest { reqId ->
 				ReadResourceRequest(
 					id = reqId,
-					params = ReadResourceRequest.ReadResourceParams(
-						uri = "file://fileA.txt",
-					),
+					params = ReadResourceRequest.ReadResourceParams(uri = "file://fileA.txt"),
 				)
 			}
 			advanceUntilIdle()
@@ -164,9 +165,7 @@ class MultiResourceProviderTest {
 			val subBResp = client.sendRequest { reqId ->
 				SubscribeRequest(
 					id = reqId,
-					params = SubscribeRequest.SubscribeParams(
-						uri = "file://fileB.txt",
-					),
+					params = SubscribeRequest.SubscribeParams(uri = "file://fileB.txt"),
 				)
 			}
 			advanceUntilIdle()
@@ -182,12 +181,11 @@ class MultiResourceProviderTest {
 				clientIncoming("""{"jsonrpc":"2.0","id":"4","result":{}}""")
 			}
 			assertLinesMatch(expectedSubscribeLogs, log, "subscribe test")
-
 			log.clear()
 
 			// 6) Make a small change to "fileB.txt" and notify
 			fs.write(rootB.resolve(fileBName)) { writeUtf8("Modified B!") }
-			providerB.notifyResourceUpdated("file://fileB.txt")
+			providerB.onResourceChange("file://fileB.txt")
 			advanceUntilIdle()
 
 			// We should see "notifications/resources/updated" on the client side
@@ -202,9 +200,7 @@ class MultiResourceProviderTest {
 			val unsubBResp = client.sendRequest { reqId ->
 				UnsubscribeRequest(
 					id = reqId,
-					params = UnsubscribeParams(
-						uri = "file://fileB.txt",
-					),
+					params = UnsubscribeParams(uri = "file://fileB.txt"),
 				)
 			}
 			advanceUntilIdle()
@@ -235,12 +231,17 @@ class MultiResourceProviderTest {
 			fs.createDirectories(rootA)
 			fs.write(rootA.resolve("fileA.txt")) { writeUtf8("Hello from A!") }
 
-			// Create a local provider with discrete mode
-			val providerA = LocalFileProvider(
+			// Create a discrete provider with known file "fileA.txt"
+			val providerA = DiscreteFileProvider(
 				fileSystem = fs,
 				rootDir = rootA,
-				fileProviderMode = LocalFileProviderMode.DISCRETE,
-				knownFiles = listOf("fileA.txt"),
+				initialFiles = listOf(
+					File(
+						relativePath = "fileA.txt",
+						name = "fileA.txt",
+						description = "Known file in rootA",
+					),
+				),
 			)
 
 			// Set up server and client with this single provider
@@ -251,7 +252,6 @@ class MultiResourceProviderTest {
 				.withTransport(serverTransport)
 				.withResourceProvider(providerA)
 				.build()
-
 			server.start()
 
 			val client = Client.Builder()
@@ -280,8 +280,9 @@ class MultiResourceProviderTest {
 			advanceUntilIdle()
 
 			// 3) The server should return a JSON-RPC error with code -32002 (resource not found).
-			assertNotNull(response.error)
-			assertEquals(JsonRpcErrorCodes.RESOURCE_NOT_FOUND, response.error.code)
+			val errorResult = response.error
+			assertNotNull(errorResult)
+			assertEquals(JsonRpcErrorCodes.RESOURCE_NOT_FOUND, errorResult.code)
 
 			// 4) Check logs
 			val expectedLogs = logLines {
