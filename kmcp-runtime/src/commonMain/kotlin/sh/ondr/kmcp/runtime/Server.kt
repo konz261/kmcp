@@ -85,7 +85,7 @@ class Server private constructor(
 	/**
 	 * Dynamically adds a new tool to the server at runtime.
 	 *
-	 * @param tool The @Tool-annotated function reference.
+	 * @param tool The @McpTool-annotated function reference.
 	 * @return `true` if the tool was added, `false` if it was already present.
 	 */
 	fun addTool(tool: KFunction<*>): Boolean =
@@ -97,9 +97,9 @@ class Server private constructor(
 		}
 
 	/**
-	 * Dynamically removes a previously added tool by its @Tool-annotated function reference.
+	 * Dynamically removes a previously added tool by its @McpTool-annotated function reference.
 	 *
-	 * @param tool The @Tool-annotated function reference that was previously added.
+	 * @param tool The @McpTool-annotated function reference that was previously added.
 	 * @return `true` if the tool was removed, `false` if it was not found.
 	 */
 	fun removeTool(tool: KFunction<*>): Boolean {
@@ -109,7 +109,7 @@ class Server private constructor(
 	/**
 	 * Dynamically adds a new prompt to the server at runtime.
 	 *
-	 * @param prompt The @Prompt-annotated function reference.
+	 * @param prompt The @McpPrompt-annotated function reference.
 	 * @return `true` if the prompt was added, `false` if it was already present.
 	 */
 	fun addPrompt(prompt: KFunction<*>): Boolean {
@@ -122,9 +122,9 @@ class Server private constructor(
 	}
 
 	/**
-	 * Dynamically removes a previously added prompt by its @Prompt-annotated function reference.
+	 * Dynamically removes a previously added prompt by its @McpPrompt-annotated function reference.
 	 *
-	 * @param prompt The @Prompt-annotated function reference that was previously added.
+	 * @param prompt The @McpPrompt-annotated function reference that was previously added.
 	 * @return `true` if the prompt was removed, `false` if it was not found.
 	 */
 	fun removePrompt(prompt: KFunction<*>): Boolean {
@@ -258,7 +258,7 @@ class Server private constructor(
 			}
 
 		/**
-		 * Registers a tool by referencing its @Tool-annotated function.
+		 * Registers a tool by referencing its @McpTool-annotated function.
 		 */
 		fun withTool(toolFunction: KFunction<*>) =
 			apply {
@@ -269,7 +269,7 @@ class Server private constructor(
 			}
 
 		/**
-		 * Registers multiple tools by referencing their @Tool-annotated functions.
+		 * Registers multiple tools by referencing their @McpTool-annotated functions.
 		 */
 		fun withTools(vararg toolFunctions: KFunction<*>) =
 			apply {
@@ -277,7 +277,7 @@ class Server private constructor(
 			}
 
 		/**
-		 * Registers a prompt by referencing its @Prompt-annotated function.
+		 * Registers a prompt by referencing its @McpPrompt-annotated function.
 		 */
 		fun withPrompt(promptFunction: KFunction<*>) =
 			apply {
@@ -288,7 +288,7 @@ class Server private constructor(
 			}
 
 		/**
-		 * Registers multiple prompts by referencing their @Prompt-annotated functions.
+		 * Registers multiple prompts by referencing their @McpPrompt-annotated functions.
 		 */
 		fun withPrompts(vararg promptFunctions: KFunction<*>) =
 			apply {

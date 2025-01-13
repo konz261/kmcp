@@ -11,7 +11,7 @@ private val allowedTags =
 	)
 
 /**
- * Parses KDoc into a main description and parameter descriptions for `@Tool` annotated functions.
+ * Parses KDoc into a main description and parameter descriptions for `@McpTool` annotated functions.
  *
  * Restrictions:
  * - Whitespaces and tab characters are normalized to single spaces. Newlines are removed.
@@ -52,7 +52,7 @@ fun String.parseDescription(parameters: List<String>): KDocDescription {
 			// Found a tag or @-starting token that's not allowed.
 			throw IllegalArgumentException(
 				"Unsupported tag '$t' found in KDoc. " +
-					"For @Tool functions, only '@param' is allowed.",
+					"For @McpTool functions, only '@param' is allowed.",
 			)
 		}
 	}

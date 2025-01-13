@@ -16,7 +16,7 @@ class KspTest : BaseKspTest() {
 				"""
 				package test
 
-				import sh.ondr.kmcp.runtime.annotation.Tool
+				import sh.ondr.kmcp.runtime.annotation.McpTool
 				import sh.ondr.kmcp.schema.content.ToolContent
 				import kotlinx.serialization.Serializable
 				
@@ -26,7 +26,7 @@ class KspTest : BaseKspTest() {
 					val country: String,
 				)
 
-				@Tool
+				@McpTool
 				fun greet(name: String, age: Int, location: Location): ToolContent {
 				    return TextContent("Hello \${'$'}name, you are \${'$'}age years old and from \${'$'}{location.city} in \${'$'}{location.country}!")
 				}

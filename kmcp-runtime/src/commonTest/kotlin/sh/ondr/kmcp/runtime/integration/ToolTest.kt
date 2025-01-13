@@ -10,7 +10,7 @@ import sh.ondr.kmcp.client
 import sh.ondr.kmcp.logLines
 import sh.ondr.kmcp.runtime.Client
 import sh.ondr.kmcp.runtime.Server
-import sh.ondr.kmcp.runtime.annotation.Tool
+import sh.ondr.kmcp.runtime.annotation.McpTool
 import sh.ondr.kmcp.runtime.core.toTextContent
 import sh.ondr.kmcp.runtime.serialization.deserializeResult
 import sh.ondr.kmcp.runtime.transport.TestTransport
@@ -24,7 +24,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-@Tool
+@McpTool
 fun sendEmail(
 	recipients: List<String>,
 	title: String,
@@ -34,7 +34,7 @@ fun sendEmail(
 /**
  * This function greets the user
  */
-@Tool
+@McpTool
 suspend fun greet(
 	name: String,
 	age: Int = 25,

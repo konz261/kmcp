@@ -21,7 +21,7 @@ KMCP is a compiler-driven [Model Context Protocol](https://modelcontextprotocol.
 Tools and prompts are functions - simply add annotations and let KMCP handle all the boiler-plate:
 
 ```kotlin
-@Tool
+@McpTool
 fun greet(name: String) = "Hello, $name!".toTextContent()
 ```
 
@@ -64,7 +64,7 @@ plugins {
 
 ## Tools
 
-KMCP supports `@Tool` functions with various argument types, including
+KMCP supports `@McpTool` functions with various argument types, including
   * Primitives
   * Strings
   * Lists
@@ -89,7 +89,7 @@ data class Email(
 /**
  * Sends an email to all recipients
  */
-@Tool
+@McpTool
 fun sendEmail(
   recipients: List<String>,
   email: Email,
@@ -144,10 +144,10 @@ Clients can now send a `tools/call` request with a JSON object describing the ab
 
 ## Prompts
 
-Just annotate functions with `@Prompt` and return a `GetPromptResult`. Arguments must be Strings:
+Just annotate functions with `@McpPrompt` and return a `GetPromptResult`. Arguments must be Strings:
 
 ```kotlin
-@Prompt
+@McpPrompt
 fun codeReviewPrompt(code: String) = buildPrompt {
   user("Please review the following code:")
   user("'''\n$code\n'''")
@@ -325,7 +325,7 @@ to trigger the notification in case a client is subscribed to this resource.
 ## TODO
 ```
 ✅ Add resource capability
-✅ Suspendable logger, @Tool and @Prompt functions
+✅ Suspendable logger, @McpTool and @McpPrompt functions
 ✅ Request cancellations
 ⬜ Pagination
 ⬜ Sampling
@@ -333,7 +333,7 @@ to trigger the notification in case a client is subscribed to this resource.
 ⬜ Roots
 ⬜ Support logging levels
 ⬜ Proper version negotiation
-⬜ Emit progress notifications from @Tool functions
+⬜ Emit progress notifications from @McpTool functions
 ⬜ Proper MIME detection
 ⬜ Add FileWatcher to automate resources/updated nofications
 ⬜ HTTP-SSE transport
@@ -344,7 +344,7 @@ to trigger the notification in case a client is subscribed to this resource.
 
 ## How KMCP Works
 
-- Annotated `@Tool` and `@Prompt` functions are processed at compile time.
+- Annotated `@McpTool` and `@McpPrompt` functions are processed at compile time.
 - KMCP generates schemas, handlers, and registrations automatically.
 - Generated code is injected during the IR phase.
 - If you mess something up, you (hopefully) get a compile-time error.

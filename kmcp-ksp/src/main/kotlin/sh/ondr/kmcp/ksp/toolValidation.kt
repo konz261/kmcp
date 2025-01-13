@@ -17,7 +17,7 @@ internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean 
 		.forEach { (name, toolsList) ->
 			val fqNames = toolsList.joinToString(", ") { it.fqName }
 			logger.error(
-				"KMCP error: Multiple @Tool functions share the name '$name'. " +
+				"KMCP error: Multiple @McpTool functions share the name '$name'. " +
 					"Tool names must be unique. Conflicts: $fqNames",
 			)
 			errorsFound = true
@@ -34,7 +34,7 @@ internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean 
 	tools.filter { it.returnTypeFqn !in allowed }
 		.forEach { tool ->
 			logger.error(
-				"KMCP error: @Tool function '${tool.functionName}' must return ToolContent or a sub-type. " +
+				"KMCP error: @McpTool function '${tool.functionName}' must return ToolContent or a sub-type. " +
 					"Currently returns: ${tool.returnTypeReadable}. " +
 					"Please change the return type to ToolContent.",
 			)
@@ -50,7 +50,7 @@ internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean 
 			}
 			.forEach { (param, typeError) ->
 				logger.error(
-					"KMCP error: @Tool function '${tool.functionName}' has a parameter '${param.name}' " +
+					"KMCP error: @McpTool function '${tool.functionName}' has a parameter '${param.name}' " +
 						"of unsupported type '${param.readableType}':\nReason: $typeError",
 				)
 				errorsFound = true
@@ -62,7 +62,7 @@ internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean 
 	tools.filter { it.params.count { p -> !p.isRequired } > nonRequiredLimit }
 		.forEach { tool ->
 			logger.error(
-				"KMCP error: @Tool function '${tool.functionName}' has more than $nonRequiredLimit non-required parameters. " +
+				"KMCP error: @McpTool function '${tool.functionName}' has more than $nonRequiredLimit non-required parameters. " +
 					"Please reduce optional/nullable/default parameters to $nonRequiredLimit or fewer.",
 			)
 			errorsFound = true
@@ -73,8 +73,8 @@ internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean 
 		.forEach { tool ->
 			val parent = tool.ksFunction.parentDeclaration?.qualifiedName?.asString() ?: "unknown parent"
 			logger.error(
-				"KMCP error: @Tool function '${tool.functionName}' is defined inside a class or object ($parent). " +
-					"@Tool functions must be top-level. Move '${tool.functionName}' to file scope.",
+				"KMCP error: @McpTool function '${tool.functionName}' is defined inside a class or object ($parent). " +
+					"@McpTool functions must be top-level. Move '${tool.functionName}' to file scope.",
 			)
 			errorsFound = true
 		}
@@ -93,7 +93,7 @@ internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean 
 		val visibility = tool.ksFunction.getVisibility()
 		if (visibility != Visibility.PUBLIC) {
 			logger.error(
-				"KMCP error: @Tool function '${tool.functionName}' must be public. " +
+				"KMCP error: @McpTool function '${tool.functionName}' must be public. " +
 					"Current visibility: $visibility. " +
 					"Please ensure it's a top-level public function with no modifiers.",
 			)
@@ -103,7 +103,7 @@ internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean 
 		val foundDisallowed = tool.ksFunction.modifiers.filter { it in disallowedModifiers }
 		if (foundDisallowed.isNotEmpty()) {
 			logger.error(
-				"KMCP error: @Tool function '${tool.functionName}' has disallowed modifiers: $foundDisallowed. " +
+				"KMCP error: @McpTool function '${tool.functionName}' has disallowed modifiers: $foundDisallowed. " +
 					"Only public, top-level, non-inline, non-abstract, non-internal functions are allowed.",
 			)
 			errorsFound = true

@@ -9,7 +9,7 @@ import sh.ondr.kmcp.client
 import sh.ondr.kmcp.logLines
 import sh.ondr.kmcp.runtime.Client
 import sh.ondr.kmcp.runtime.Server
-import sh.ondr.kmcp.runtime.annotation.Prompt
+import sh.ondr.kmcp.runtime.annotation.McpPrompt
 import sh.ondr.kmcp.runtime.transport.TestTransport
 import sh.ondr.kmcp.schema.core.JsonRpcErrorCodes
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest
@@ -26,7 +26,7 @@ import kotlin.test.assertNotNull
  *
  * @param code The code to review.
  */
-@Prompt
+@McpPrompt
 fun strictReviewPrompt(code: String) =
 	GetPromptResult(
 		description = "Strict code review prompt",

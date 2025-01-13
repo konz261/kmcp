@@ -13,8 +13,8 @@ class KmcpProcessor(
 	private val options: Map<String, String>,
 ) : SymbolProcessor {
 	val pkg = "sh.ondr.kmcp"
-	val toolAnnoFqn = "$pkg.runtime.annotation.Tool"
-	val promptAnnoFqn = "$pkg.runtime.annotation.Prompt"
+	val toolAnnoFqn = "$pkg.runtime.annotation.McpTool"
+	val promptAnnoFqn = "$pkg.runtime.annotation.McpPrompt"
 	val generatedPkg = "$pkg.generated"
 
 	val collectedTools = mutableListOf<ToolHelper>()
@@ -52,7 +52,7 @@ class KmcpProcessor(
 		if (collectedTools.isNotEmpty()) {
 			val errorsFound = checkToolFunctions(collectedTools)
 			if (errorsFound) {
-				logger.error("KMCP Error: aborting code generation due to errors in @Tool-annotated functions.")
+				logger.error("KMCP Error: aborting code generation due to errors in @McpTool-annotated functions.")
 				return
 			}
 			generateToolFiles()

@@ -11,8 +11,8 @@ import sh.ondr.kmcp.client
 import sh.ondr.kmcp.logLines
 import sh.ondr.kmcp.runtime.Client
 import sh.ondr.kmcp.runtime.Server
-import sh.ondr.kmcp.runtime.annotation.Prompt
-import sh.ondr.kmcp.runtime.annotation.Tool
+import sh.ondr.kmcp.runtime.annotation.McpPrompt
+import sh.ondr.kmcp.runtime.annotation.McpTool
 import sh.ondr.kmcp.runtime.transport.TestTransport
 import sh.ondr.kmcp.schema.content.TextContent
 import sh.ondr.kmcp.schema.content.ToolContent
@@ -126,11 +126,11 @@ class McpInitializationTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			// We'll define a simple @Tool and @Prompt right here, or assume they exist in the same package.
-			@Tool
+			// We'll define a simple @McpTool and @McpPrompt right here, or assume they exist in the same package.
+			@McpTool
 			fun greet(name: String): ToolContent = TextContent("Hello, $name!")
 
-			@Prompt
+			@McpPrompt
 			fun codeReviewPrompt(code: String): GetPromptResult {
 				return GetPromptResult(
 					description = "A code review prompt",

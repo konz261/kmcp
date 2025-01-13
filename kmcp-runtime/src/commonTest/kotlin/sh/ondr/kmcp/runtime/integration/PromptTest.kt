@@ -9,7 +9,7 @@ import sh.ondr.kmcp.client
 import sh.ondr.kmcp.logLines
 import sh.ondr.kmcp.runtime.Client
 import sh.ondr.kmcp.runtime.Server
-import sh.ondr.kmcp.runtime.annotation.Prompt
+import sh.ondr.kmcp.runtime.annotation.McpPrompt
 import sh.ondr.kmcp.runtime.prompts.buildPrompt
 import sh.ondr.kmcp.runtime.serialization.deserializeResult
 import sh.ondr.kmcp.runtime.transport.TestTransport
@@ -27,7 +27,7 @@ import kotlin.test.assertNotNull
 /**
  * This function prompts the user to review some code
  */
-@Prompt
+@McpPrompt
 fun codeReviewPrompt(code: String) =
 	buildPrompt("Code review prompt") {
 		user { "Please review the code: $code" }

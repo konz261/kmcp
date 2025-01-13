@@ -16,7 +16,7 @@ import sh.ondr.kmcp.client
 import sh.ondr.kmcp.logLines
 import sh.ondr.kmcp.runtime.Client
 import sh.ondr.kmcp.runtime.Server
-import sh.ondr.kmcp.runtime.annotation.Tool
+import sh.ondr.kmcp.runtime.annotation.McpTool
 import sh.ondr.kmcp.runtime.core.toTextContent
 import sh.ondr.kmcp.runtime.transport.TestTransport
 import sh.ondr.kmcp.schema.content.ToolContent
@@ -30,7 +30,7 @@ import kotlin.test.fail
  * A slow tool that simulates long-running work by looping with delays.
  * Cancels early if the coroutine is no longer active.
  */
-@Tool
+@McpTool
 suspend fun slowToolOperation(iterations: Int = 10): ToolContent {
 	for (i in 1..iterations) {
 		delay(300)
