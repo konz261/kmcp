@@ -9,6 +9,7 @@ dependencies {
 	compileOnly(libs.auto.service)
 	compileOnly(libs.auto.service.annotations)
 	compileOnly(libs.kotlin.compiler.embeddable)
+	implementation(libs.koja.gradle)
 	implementation(libs.kotlin.stdlib)
 	implementation(libs.kotlin.gradle.api)
 	implementation(libs.kotlin.gradle.plugin)

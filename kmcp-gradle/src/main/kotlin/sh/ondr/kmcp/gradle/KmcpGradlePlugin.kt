@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerPluginSupportPlugin
 import org.jetbrains.kotlin.gradle.plugin.SubpluginArtifact
 import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
+import sh.ondr.koja.gradle.KojaGradlePlugin
 import kotlin.jvm.java
 
 @AutoService(KotlinCompilerPluginSupportPlugin::class)
@@ -15,7 +16,12 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 	override fun apply(target: Project) {
 		val kspDependency = target.getKspDependency()
 		val runtimeDependency = target.getRuntimeDependency()
+		// TODO remove
 		val jsonSchemaDependency = "sh.ondr:kotlin-json-schema:0.1.1"
+
+		// Apply koja plugin
+		val kojaGradlePlugin = KojaGradlePlugin()
+		kojaGradlePlugin.apply(target)
 
 		// Apply in any case
 		target.pluginManager.apply("com.google.devtools.ksp")
