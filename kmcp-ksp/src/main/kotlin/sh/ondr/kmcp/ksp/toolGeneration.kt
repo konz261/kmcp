@@ -30,9 +30,9 @@ private fun KmcpProcessor.generateToolParamsFile() {
 			helper.params.forEachIndexed { index, p ->
 				val comma = if (index == helper.params.size - 1) "" else ","
 				if (!p.hasDefault && !p.isNullable) {
-					append("    val ${p.name}: ${p.fqnType}$comma\n")
+					append("  val ${p.name}: ${p.fqnType}$comma\n")
 				} else {
-					append("    val ${p.name}: ${p.fqnType}? = null$comma\n")
+					append("  val ${p.name}: ${p.fqnType}? = null$comma\n")
 				}
 			}
 			appendLine(")")
@@ -59,7 +59,7 @@ private fun KmcpProcessor.generateToolHandlersFile() {
 		appendLine()
 		appendLine("import kotlinx.serialization.json.JsonObject")
 		appendLine("import kotlinx.serialization.json.decodeFromJsonElement")
-		appendLine("import sh.ondr.kmcp.runtime.core.kmcpJson")
+		appendLine("import sh.ondr.kmcp.runtime.core.mcpJson")
 		appendLine("import sh.ondr.kmcp.schema.tools.CallToolResult")
 		appendLine("import sh.ondr.kmcp.schema.content.ToolContent")
 		appendLine("import sh.ondr.kmcp.runtime.tools.ToolHandler")
@@ -75,31 +75,31 @@ private fun KmcpProcessor.generateToolHandlersFile() {
 			val paramNames = helper.params.map { it.name }.joinToString { "\"$it\"" }
 
 			appendLine("class $handlerClassName : ToolHandler {")
-			appendLine("    private val knownParams = setOf($paramNames)")
+			appendLine("  private val knownParams = setOf($paramNames)")
 			appendLine()
-			appendLine("    override suspend fun call(params: JsonObject): CallToolResult {")
-			appendLine("        val unknownKeys = params.keys - knownParams")
-			appendLine("        if (unknownKeys.isNotEmpty()) {")
+			appendLine("  override suspend fun call(params: JsonObject): CallToolResult {")
+			appendLine("    val unknownKeys = params.keys - knownParams")
+			appendLine("    if (unknownKeys.isNotEmpty()) {")
 			appendLine(
-				"            throw UnknownArgumentException(\"Unknown argument '\${unknownKeys.first()}' for tool '${helper.functionName}'\")",
+				"      throw UnknownArgumentException(\"Unknown argument '\${unknownKeys.first()}' for tool '${helper.functionName}'\")",
 			)
-			appendLine("        }")
+			appendLine("    }")
 			appendLine()
 			// Check required parameters
 			val requiredParams = helper.params.filter { it.isRequired }.map { it.name }
 			if (requiredParams.isNotEmpty()) {
-				appendLine("        // Check required parameters")
+				appendLine("    // Check required parameters")
 				for (reqParam in requiredParams) {
-					appendLine("        if (!params.containsKey(\"$reqParam\")) {")
-					appendLine("            throw MissingRequiredArgumentException(\"Missing required argument '$reqParam'\")")
-					appendLine("        }")
+					appendLine("    if (!params.containsKey(\"$reqParam\")) {")
+					appendLine("      throw MissingRequiredArgumentException(\"Missing required argument '$reqParam'\")")
+					appendLine("    }")
 				}
 			}
 			appendLine()
-			appendLine("        val obj = kmcpJson.decodeFromJsonElement($paramsClassName.serializer(), params)")
-			appendLine("        val result = ${generateInvocationCode(helper, 2)}")
-			appendLine("        return CallToolResult(listOf(result))")
-			appendLine("    }")
+			appendLine("    val obj = mcpJson.decodeFromJsonElement($paramsClassName.serializer(), params)")
+			appendLine("    val result = ${generateInvocationCode(helper, 2).trim()}")
+			appendLine("    return CallToolResult(listOf(result))")
+			appendLine("  }")
 			appendLine("}")
 			appendLine()
 		}
@@ -130,7 +130,7 @@ private fun KmcpProcessor.generateToolOptionalChain(
 
 	val firstOptional = defaultParams.first()
 	val remaining = defaultParams.drop(1)
-	val indent = " ".repeat(level * 4)
+	val indent = " ".repeat(level * 2)
 
 	return buildString {
 		appendLine("${indent}if (params.containsKey(\"${firstOptional.name}\")) {")
@@ -149,16 +149,16 @@ private fun KmcpProcessor.callToolFunction(
 	optionalParams: List<ParamInfo>,
 	level: Int,
 ): String {
-	val indent = " ".repeat(level * 4)
+	val indent = " ".repeat(level * 2)
 	val allParams = requiredParams + optionalParams
-	val args = allParams.joinToString(",\n$indent    ") { param ->
+	val args = allParams.joinToString(",\n$indent  ") { param ->
 		val suffix = if (param.hasDefault && !param.isNullable) "!!" else ""
 		"${param.name} = obj.${param.name}$suffix"
 	}
 	return buildString {
 		appendLine("$indent$fqFunctionName(")
 		if (allParams.isNotEmpty()) {
-			appendLine("$indent    $args")
+			appendLine("$indent  $args")
 		}
 		append("$indent)")
 	}

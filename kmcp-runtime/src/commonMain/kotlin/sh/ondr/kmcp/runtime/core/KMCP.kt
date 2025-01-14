@@ -9,7 +9,8 @@ import sh.ondr.kmcp.schema.tools.ToolInfo
 
 const val JSON_RPC_VERSION = "2.0"
 const val MCP_VERSION = "2024-11-05"
-val kmcpJson = Json {
+
+val mcpJson = Json {
 	encodeDefaults = true
 	explicitNulls = false
 	isLenient = true
@@ -18,9 +19,7 @@ val kmcpJson = Json {
 	serializersModule = kmcpSerializersModule
 }
 
-object KMCP {
-	val toolInfos = mutableMapOf<String, ToolInfo>()
-	val toolHandlers = mutableMapOf<String, ToolHandler>()
-	val promptInfos = mutableMapOf<String, PromptInfo>()
-	val promptHandlers = mutableMapOf<String, PromptHandler>()
-}
+val mcpToolInfos = mutableMapOf<String, ToolInfo>()
+val mcpToolHandlers = mutableMapOf<String, ToolHandler>()
+val mcpPromptInfos = mutableMapOf<String, PromptInfo>()
+val mcpPromptHandlers = mutableMapOf<String, PromptHandler>()

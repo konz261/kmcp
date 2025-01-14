@@ -6,8 +6,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import sh.ondr.kmcp.runtime.core.KMCP
 import sh.ondr.kmcp.runtime.core.MCP_VERSION
+import sh.ondr.kmcp.runtime.core.mcpPromptHandlers
+import sh.ondr.kmcp.runtime.core.mcpPromptInfos
+import sh.ondr.kmcp.runtime.core.mcpToolHandlers
+import sh.ondr.kmcp.runtime.core.mcpToolInfos
 import sh.ondr.kmcp.runtime.error.MethodNotFoundException
 import sh.ondr.kmcp.runtime.error.ResourceNotFoundException
 import sh.ondr.kmcp.runtime.resources.ResourceProvider
@@ -160,7 +163,7 @@ class Server private constructor(
 
 	override suspend fun handleListPromptsRequest(params: ListPromptsParams?): ListPromptsResult {
 		val promptInfos = prompts.map { promptName ->
-			KMCP.promptInfos[promptName]
+			mcpPromptInfos[promptName]
 				?: throw IllegalStateException("PromptInfo not found for prompt: $promptName")
 		}
 		return ListPromptsResult(prompts = promptInfos)
@@ -168,7 +171,7 @@ class Server private constructor(
 
 	override suspend fun handleGetPromptRequest(params: GetPromptParams): GetPromptResult {
 		val promptName = params.name
-		val handler = KMCP.promptHandlers[promptName] ?: throw MethodNotFoundException("Handler for prompt $promptName not found")
+		val handler = mcpPromptHandlers[promptName] ?: throw MethodNotFoundException("Handler for prompt $promptName not found")
 		val jsonArgs = params.arguments
 			?.mapValues { JsonPrimitive(it.value) }
 			?.let { JsonObject(it) }
@@ -179,14 +182,14 @@ class Server private constructor(
 
 	override suspend fun handleCallToolRequest(params: CallToolParams): CallToolResult {
 		val toolName = params.name
-		val handler = KMCP.toolHandlers[toolName] ?: throw IllegalStateException("Handler for tool $toolName not found")
+		val handler = mcpToolHandlers[toolName] ?: throw IllegalStateException("Handler for tool $toolName not found")
 		val jsonArguments = JsonObject(params.arguments ?: emptyMap())
 		return handler.call(jsonArguments)
 	}
 
 	override suspend fun handleListToolsRequest(params: ListToolsParams?): ListToolsResult {
 		val toolInfos = tools.map { name ->
-			KMCP.toolInfos[name] ?: throw IllegalStateException("ToolInfo not found for tool: $name")
+			mcpToolInfos[name] ?: throw IllegalStateException("ToolInfo not found for tool: $name")
 		}
 		return ListToolsResult(tools = toolInfos)
 	}

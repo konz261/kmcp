@@ -4,7 +4,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import sh.ondr.kmcp.runtime.core.kmcpJson
+import sh.ondr.kmcp.runtime.core.mcpJson
 import sh.ondr.kmcp.schema.content.Content
 import sh.ondr.kmcp.schema.content.EmbeddedResourceContent
 import sh.ondr.kmcp.schema.content.ImageContent
@@ -22,12 +22,12 @@ class SimpleDeserializationTest {
 	@Test
 	fun textContentRoundTrip() {
 		val original = TextContent(text = "Hello, world!")
-		val json = kmcpJson.encodeToJsonElement<Content>(original)
+		val json = mcpJson.encodeToJsonElement<Content>(original)
 
 		val jsonObject = json.jsonObject
 		assertEquals("text", jsonObject["type"]?.jsonPrimitive?.content)
 
-		val deserialized = kmcpJson.decodeFromJsonElement<Content>(json)
+		val deserialized = mcpJson.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is TextContent)
 		assertEquals(original.text, deserialized.text)
 		assertEquals(original.annotations, deserialized.annotations)
@@ -42,11 +42,11 @@ class SimpleDeserializationTest {
 				mimeType = "image/png",
 				annotations = Annotations(audience = listOf(Role.USER)),
 			)
-		val json = kmcpJson.encodeToJsonElement<Content>(original)
+		val json = mcpJson.encodeToJsonElement<Content>(original)
 		val jsonObject = json.jsonObject
 		assertEquals("image", jsonObject["type"]?.jsonPrimitive?.content)
 
-		val deserialized = kmcpJson.decodeFromJsonElement<Content>(json)
+		val deserialized = mcpJson.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is ImageContent)
 		assertEquals(original.data, deserialized.data)
 		assertEquals(original.mimeType, deserialized.mimeType)
@@ -56,10 +56,10 @@ class SimpleDeserializationTest {
 	@Test
 	fun ensurePolymorphicBehaviorOnlyWhenSerializedAsBaseType() {
 		val textOnly = TextContent("Just text")
-		val directJson = kmcpJson.encodeToJsonElement(textOnly)
+		val directJson = mcpJson.encodeToJsonElement(textOnly)
 		assertEquals(null, directJson.jsonObject["type"])
 
-		val polyJson = kmcpJson.encodeToJsonElement<Content>(textOnly)
+		val polyJson = mcpJson.encodeToJsonElement<Content>(textOnly)
 		assertEquals("text", polyJson.jsonObject["type"]?.jsonPrimitive?.content)
 	}
 
@@ -71,8 +71,8 @@ class SimpleDeserializationTest {
 				annotations = Annotations(audience = listOf(Role.USER, Role.ASSISTANT), priority = 0.5),
 			)
 
-		val json = kmcpJson.encodeToJsonElement<Content>(original)
-		val deserialized = kmcpJson.decodeFromJsonElement<Content>(json)
+		val json = mcpJson.encodeToJsonElement<Content>(original)
+		val deserialized = mcpJson.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is TextContent)
 		assertNotNull(deserialized.annotations)
 		assertEquals(listOf(Role.USER, Role.ASSISTANT), deserialized.annotations.audience)
@@ -87,8 +87,8 @@ class SimpleDeserializationTest {
 				text = "Only priority",
 				annotations = Annotations(priority = 1.0),
 			)
-		val json = kmcpJson.encodeToJsonElement<Content>(original)
-		val deserialized = kmcpJson.decodeFromJsonElement<Content>(json)
+		val json = mcpJson.encodeToJsonElement<Content>(original)
+		val deserialized = mcpJson.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is TextContent)
 		assertNotNull(deserialized.annotations)
 		assertNull(deserialized.annotations.audience)
@@ -103,8 +103,8 @@ class SimpleDeserializationTest {
 				text = "Only audience",
 				annotations = Annotations(audience = listOf(Role.ASSISTANT)),
 			)
-		val json = kmcpJson.encodeToJsonElement<Content>(original)
-		val deserialized = kmcpJson.decodeFromJsonElement<Content>(json)
+		val json = mcpJson.encodeToJsonElement<Content>(original)
+		val deserialized = mcpJson.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is TextContent)
 		assertNotNull(deserialized.annotations)
 		assertEquals(listOf(Role.ASSISTANT), deserialized.annotations.audience)
@@ -115,13 +115,13 @@ class SimpleDeserializationTest {
 	fun annotationsMissingEntirely() {
 		// No annotations at all
 		val original = TextContent(text = "No annotations")
-		val json = kmcpJson.encodeToJsonElement<Content>(original)
+		val json = mcpJson.encodeToJsonElement<Content>(original)
 
 		// Check JSON does not have 'annotations' field
 		val jsonObject = json.jsonObject
 		assertNull(jsonObject["annotations"])
 
-		val deserialized = kmcpJson.decodeFromJsonElement<Content>(json)
+		val deserialized = mcpJson.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is TextContent)
 		assertNull(deserialized.annotations)
 	}
@@ -136,11 +136,11 @@ class SimpleDeserializationTest {
 			)
 		val original = EmbeddedResourceContent(resource = resource)
 
-		val json = kmcpJson.encodeToJsonElement<Content>(original)
+		val json = mcpJson.encodeToJsonElement<Content>(original)
 		val jsonObject = json.jsonObject
 		assertEquals("resource", jsonObject["type"]?.jsonPrimitive?.content)
 
-		val deserialized = kmcpJson.decodeFromJsonElement<Content>(json)
+		val deserialized = mcpJson.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is EmbeddedResourceContent)
 		assertTrue(deserialized.resource is ResourceContents.Text)
 		val textResource = deserialized.resource
@@ -164,8 +164,8 @@ class SimpleDeserializationTest {
 				annotations = Annotations(audience = listOf(Role.USER), priority = 0.9),
 			)
 
-		val json = kmcpJson.encodeToJsonElement<Content>(original)
-		val deserialized = kmcpJson.decodeFromJsonElement<Content>(json)
+		val json = mcpJson.encodeToJsonElement<Content>(original)
+		val deserialized = mcpJson.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is EmbeddedResourceContent)
 		assertTrue(deserialized.resource is ResourceContents.Blob)
 		val blobResource = deserialized.resource
@@ -185,11 +185,11 @@ class SimpleDeserializationTest {
 				data = "base64img",
 				mimeType = "image/jpeg",
 			)
-		val json = kmcpJson.encodeToJsonElement<Content>(original)
+		val json = mcpJson.encodeToJsonElement<Content>(original)
 		val jsonObject = json.jsonObject
 		assertNull(jsonObject["annotations"])
 
-		val deserialized = kmcpJson.decodeFromJsonElement<Content>(json)
+		val deserialized = mcpJson.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is ImageContent)
 		assertEquals("base64img", deserialized.data)
 		assertEquals("image/jpeg", deserialized.mimeType)
@@ -205,8 +205,8 @@ class SimpleDeserializationTest {
 				annotations = Annotations(audience = emptyList()),
 			)
 
-		val json = kmcpJson.encodeToJsonElement<Content>(original)
-		val deserialized = kmcpJson.decodeFromJsonElement<Content>(json)
+		val json = mcpJson.encodeToJsonElement<Content>(original)
+		val deserialized = mcpJson.decodeFromJsonElement<Content>(json)
 		assertTrue(deserialized is TextContent)
 		assertNotNull(deserialized.annotations)
 		// audience is empty

@@ -16,7 +16,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import sh.ondr.kmcp.runtime.core.kmcpJson
+import sh.ondr.kmcp.runtime.core.mcpJson
 import sh.ondr.kmcp.runtime.error.MethodNotFoundException
 import sh.ondr.kmcp.runtime.error.MissingRequiredArgumentException
 import sh.ondr.kmcp.runtime.error.ResourceNotFoundException
@@ -374,7 +374,7 @@ abstract class McpComponent(
 					id = id,
 					error = JsonRpcError(code = errorCode, message = errorMsg),
 				)
-				val serializedError = kmcpJson.encodeToString(JsonRpcResponse.serializer(), errorResponse)
+				val serializedError = mcpJson.encodeToString(JsonRpcResponse.serializer(), errorResponse)
 				logOutgoing(serializedError)
 				transport.writeString(serializedError)
 			}
@@ -383,7 +383,7 @@ abstract class McpComponent(
 
 	private fun extractIdAndMethod(line: String): Pair<String?, String?> {
 		return try {
-			val jsonObj = kmcpJson.parseToJsonElement(line).jsonObject
+			val jsonObj = mcpJson.parseToJsonElement(line).jsonObject
 			val idElement = jsonObj["id"]
 			val id = if (idElement == null || idElement.toString() == "null") null else idElement.toString().trim('"')
 			val method = jsonObj["method"]?.jsonPrimitive?.contentOrNull
@@ -413,7 +413,7 @@ abstract class McpComponent(
 		val job = scope.launch {
 			val response = handleRequest(request)
 			if (this@launch.isActive) {
-				val responseLine = kmcpJson.encodeToString(JsonRpcResponse.serializer(), response)
+				val responseLine = mcpJson.encodeToString(JsonRpcResponse.serializer(), response)
 				logOutgoing(responseLine)
 				transport.writeString(responseLine)
 			}
