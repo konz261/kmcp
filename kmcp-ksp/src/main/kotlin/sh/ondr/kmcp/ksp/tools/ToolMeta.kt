@@ -1,11 +1,24 @@
-package sh.ondr.kmcp.ksp
+package sh.ondr.kmcp.ksp.tools
 
+import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import sh.ondr.kmcp.ksp.ParamInfo
+import sh.ondr.kmcp.ksp.toFqnString
 
-// TODO merge duplicate
-internal fun KSFunctionDeclaration.toToolHelperOrNull(): ToolHelper? {
+data class ToolMeta(
+	val ksFunction: KSFunctionDeclaration,
+	val functionName: String,
+	val fqName: String,
+	val params: List<ParamInfo>,
+	val paramsClassName: String,
+	val returnTypeFqn: String,
+	val returnTypeReadable: String,
+	val originatingFile: KSFile,
+	val kdoc: String? = null,
+)
+
+fun KSFunctionDeclaration.toToolMeta(): ToolMeta {
 	val functionName = simpleName.asString()
-
 	val paramInfos = parameters.mapIndexed { index, p ->
 		val parameterName = p.name?.asString() ?: "arg$index"
 		val parameterType = p.type.resolve()
@@ -25,30 +38,15 @@ internal fun KSFunctionDeclaration.toToolHelperOrNull(): ToolHelper? {
 		)
 	}
 
-	val retFqn = returnType?.resolve()?.toFqnString() ?: returnType.toString()
-	val originFiles = containingFile?.let { listOf(it) } ?: emptyList()
-
-	// Parse docstring if available
-	val docString = this.docString
-	val (mainDesc, paramDescriptions) = if (docString != null) {
-		docString.parseDescription(paramInfos.map { it.name })
-	} else {
-		KDocDescription(null, emptyMap())
-	}
-
-	// Assign parameter descriptions
-	paramInfos.forEach { p ->
-		p.description = paramDescriptions[p.name]
-	}
-
-	return ToolHelper(
+	return ToolMeta(
 		ksFunction = this,
 		functionName = functionName,
+		paramsClassName = functionName.replaceFirstChar { it.uppercase() } + "McpToolParams",
 		fqName = qualifiedName?.asString() ?: "",
 		params = paramInfos,
-		returnTypeFqn = retFqn,
+		returnTypeFqn = returnType?.resolve()?.toFqnString() ?: returnType.toString(),
 		returnTypeReadable = returnType.toString(),
-		originatingFiles = originFiles,
-		description = mainDesc,
+		originatingFile = containingFile!!,
+		kdoc = docString,
 	)
 }

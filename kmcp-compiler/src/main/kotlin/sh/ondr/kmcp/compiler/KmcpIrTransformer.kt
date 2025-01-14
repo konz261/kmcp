@@ -21,7 +21,7 @@ class KmcpIrTransformer(
 	private val pluginContext: IrPluginContext,
 ) : IrElementTransformerVoid() {
 	private val pkg = "sh.ondr.kmcp"
-	private val registryClassId = ClassId.topLevel(FqName("$pkg.generated.KmcpGeneratedInitializer"))
+	private val registryClassId = ClassId.topLevel(FqName("$pkg.generated.initializer.KmcpInitializer"))
 
 	override fun visitConstructorCall(expression: IrConstructorCall): IrExpression {
 		expression.transformChildrenVoid()
@@ -31,7 +31,7 @@ class KmcpIrTransformer(
 		val isInServer = callee.constructedClass.parentClassOrNull?.name?.asString() == "Server"
 		val isInRuntimePackage = callee.constructedClass.parentClassOrNull?.packageFqName?.asString() == "sh.ondr.kmcp.runtime"
 		if (isNamedBuilder && isInServer && isInRuntimePackage) {
-			val initializerSymbol = pluginContext.referenceClass(registryClassId) ?: error("Could not find KmcpGeneratedInitializer class")
+			val initializerSymbol = pluginContext.referenceClass(registryClassId) ?: error("Could not find KmcpInitializer")
 
 			val builder =
 				DeclarationIrBuilder(

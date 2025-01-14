@@ -6,9 +6,11 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Visibility
+import sh.ondr.kmcp.ksp.tools.ToolMeta
+import kotlin.collections.filter
 
 // TODO clean up this mess
-internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolHelper>): Boolean {
+internal fun KmcpProcessor.checkToolFunctions(tools: List<ToolMeta>): Boolean {
 	var errorsFound = false
 
 	// 1. Unique tool names

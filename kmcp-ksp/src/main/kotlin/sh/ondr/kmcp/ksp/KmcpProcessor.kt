@@ -6,6 +6,12 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import sh.ondr.kmcp.ksp.tools.ToolMeta
+import sh.ondr.kmcp.ksp.tools.generateToolHandlersFile
+import sh.ondr.kmcp.ksp.tools.generateToolParamsClass
+import sh.ondr.kmcp.ksp.tools.toToolMeta
+import kotlin.collections.isNotEmpty
+import kotlin.collections.mapNotNull
 
 class KmcpProcessor(
 	val codeGenerator: CodeGenerator,
@@ -15,20 +21,34 @@ class KmcpProcessor(
 	val pkg = "sh.ondr.kmcp"
 	val toolAnnoFqn = "$pkg.runtime.annotation.McpTool"
 	val promptAnnoFqn = "$pkg.runtime.annotation.McpPrompt"
-	val generatedPkg = "$pkg.generated"
 
-	val collectedTools = mutableListOf<ToolHelper>()
+	// TODO remove this intermediate variable
+	val kmcpParamsPackage = "$pkg.generated.params"
+	val kmcpHandlersPackage = "$pkg.generated.handlers"
+	val kmcpInitializerPackage = "$pkg.generated.initializer"
+
+	val tools = mutableListOf<ToolMeta>()
 	val collectedPrompts = mutableListOf<PromptHelper>()
 
 	override fun process(resolver: Resolver): List<KSAnnotated> {
-		val toolFunctions = resolver
+		val currentRoundTools: List<ToolMeta> = resolver
 			.getSymbolsWithAnnotation(toolAnnoFqn)
 			.filterIsInstance<KSFunctionDeclaration>()
+			.map { it.toToolMeta() }
 			.toList()
 
-		if (toolFunctions.isNotEmpty()) {
-			val newTools = toolFunctions.mapNotNull { it.toToolHelperOrNull() }
-			collectedTools.addAll(newTools)
+		// Validate that function names are unique
+		val currentDuplicated = currentRoundTools.groupBy { it.functionName }.any { it.value.size > 1 }
+		val globalDuplicated = tools.map { it.functionName }.intersect(currentRoundTools.map { it.functionName }).isNotEmpty()
+		if (currentDuplicated || globalDuplicated) {
+			// TODO reference specific duplications
+			logger.error("@McpTool function names must be unique")
+			return emptyList()
+		}
+
+		tools.addAll(currentRoundTools)
+		currentRoundTools.forEach {
+			generateToolParamsClass(it)
 		}
 
 		val promptFunctions = resolver
@@ -45,17 +65,17 @@ class KmcpProcessor(
 	}
 
 	override fun finish() {
+		generateToolHandlersFile()
 		if (collectedPrompts.isNotEmpty()) {
 			generatePromptFiles()
 		}
 
-		if (collectedTools.isNotEmpty()) {
-			val errorsFound = checkToolFunctions(collectedTools)
+		if (tools.isNotEmpty()) {
+			val errorsFound = checkToolFunctions(tools)
 			if (errorsFound) {
 				logger.error("KMCP Error: aborting code generation due to errors in @McpTool-annotated functions.")
 				return
 			}
-			generateToolFiles()
 			generateInitializer()
 		}
 	}

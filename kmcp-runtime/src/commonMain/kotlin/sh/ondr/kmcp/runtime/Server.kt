@@ -8,9 +8,9 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import sh.ondr.kmcp.runtime.core.MCP_VERSION
 import sh.ondr.kmcp.runtime.core.mcpPromptHandlers
-import sh.ondr.kmcp.runtime.core.mcpPromptInfos
+import sh.ondr.kmcp.runtime.core.mcpPromptParams
 import sh.ondr.kmcp.runtime.core.mcpToolHandlers
-import sh.ondr.kmcp.runtime.core.mcpToolInfos
+import sh.ondr.kmcp.runtime.core.mcpToolParams
 import sh.ondr.kmcp.runtime.error.MethodNotFoundException
 import sh.ondr.kmcp.runtime.error.ResourceNotFoundException
 import sh.ondr.kmcp.runtime.resources.ResourceProvider
@@ -163,10 +163,11 @@ class Server private constructor(
 
 	override suspend fun handleListPromptsRequest(params: ListPromptsParams?): ListPromptsResult {
 		val promptInfos = prompts.map { promptName ->
-			mcpPromptInfos[promptName]
+			mcpPromptParams[promptName]
 				?: throw IllegalStateException("PromptInfo not found for prompt: $promptName")
 		}
-		return ListPromptsResult(prompts = promptInfos)
+		// TODO fix
+		return ListPromptsResult(prompts = listOf())
 	}
 
 	override suspend fun handleGetPromptRequest(params: GetPromptParams): GetPromptResult {
@@ -189,9 +190,10 @@ class Server private constructor(
 
 	override suspend fun handleListToolsRequest(params: ListToolsParams?): ListToolsResult {
 		val toolInfos = tools.map { name ->
-			mcpToolInfos[name] ?: throw IllegalStateException("ToolInfo not found for tool: $name")
+			mcpToolParams[name] ?: throw IllegalStateException("ToolInfo not found for tool: $name")
 		}
-		return ListToolsResult(tools = toolInfos)
+		// TODO fix
+		return ListToolsResult(tools = listOf())
 	}
 
 	override suspend fun handleListResourcesRequest(params: ListResourcesParams?): ListResourcesResult {
