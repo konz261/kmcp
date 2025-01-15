@@ -19,9 +19,31 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 		// TODO remove
 		val jsonSchemaDependency = "sh.ondr:kotlin-json-schema:0.1.1"
 
+		// Immediately fail if Koja is already applied
+		if (target.plugins.hasPlugin("sh.ondr.koja")) {
+			error(
+				"Kolli plugin cannot be used together with the Koja plugin. " +
+					"Remove the 'sh.ondr.koja' plugin from your build.",
+			)
+		}
+
+		// Or fail if Koja is applied later
+		target.pluginManager.withPlugin("sh.ondr.koja") {
+			error(
+				"Kolli plugin cannot be used together with the Koja plugin. " +
+					"Remove the 'sh.ondr.koja' plugin from your build.",
+			)
+		}
+
 		// Apply koja plugin
 		val kojaGradlePlugin = KojaGradlePlugin()
 		kojaGradlePlugin.apply(target)
+
+		// Specifically add koja compiler plugin to the classpath
+		val configuration = target.configurations.getByName("kotlinCompilerPluginClasspath")
+		configuration.dependencies.add(
+			target.dependencies.create("sh.ondr.koja:koja-compiler:0.2.0"),
+		)
 
 		// Apply in any case
 		target.pluginManager.apply("com.google.devtools.ksp")
