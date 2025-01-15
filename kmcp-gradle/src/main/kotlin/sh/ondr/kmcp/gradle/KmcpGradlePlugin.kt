@@ -16,8 +16,6 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 	override fun apply(target: Project) {
 		val kspDependency = target.getKspDependency()
 		val runtimeDependency = target.getRuntimeDependency()
-		// TODO remove
-		val jsonSchemaDependency = "sh.ondr:kotlin-json-schema:0.1.1"
 
 		// Immediately fail if Koja is already applied
 		if (target.plugins.hasPlugin("sh.ondr.koja")) {
@@ -53,7 +51,6 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 			val kotlin = target.extensions.getByType(KotlinMultiplatformExtension::class.java)
 			// Add jsonschema and runtime to commonMain
 			kotlin.sourceSets.getByName("commonMain").dependencies {
-				implementation(jsonSchemaDependency)
 				if (target.name != "kmcp-runtime") {
 					implementation(runtimeDependency)
 				}
@@ -83,7 +80,6 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 			val kotlinJvm = target.extensions.getByType(org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension::class.java)
 			// Add jsonschema and runtime to main
 			kotlinJvm.sourceSets.getByName("main").dependencies {
-				implementation(jsonSchemaDependency)
 				if (target.name != "kmcp-runtime") {
 					implementation(runtimeDependency)
 				}

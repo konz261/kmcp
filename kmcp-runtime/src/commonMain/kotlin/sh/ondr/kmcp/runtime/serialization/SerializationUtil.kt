@@ -6,13 +6,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
-import sh.ondr.jsonschema.SchemaEncoder
 import sh.ondr.kmcp.runtime.core.mcpJson
 import sh.ondr.kmcp.schema.core.JsonRpcMessage
 import sh.ondr.kmcp.schema.core.JsonRpcNotification
 import sh.ondr.kmcp.schema.core.JsonRpcRequest
 import sh.ondr.kmcp.schema.core.Result
 import sh.ondr.kmcp.schema.tools.ListToolsResult
+import sh.ondr.koja.kojaJson
 
 // TODO clean this mess up
 
@@ -22,7 +22,7 @@ import sh.ondr.kmcp.schema.tools.ListToolsResult
 inline fun <reified T : Result> serializeResult(value: T): JsonElement {
 	return if (value is ListToolsResult) {
 		// Workaround to serialize JsonSchema correctly
-		SchemaEncoder.format.encodeToJsonElement<ListToolsResult>(value)
+		kojaJson.encodeToJsonElement<ListToolsResult>(value)
 	} else {
 		mcpJson.encodeToJsonElement(value)
 	}
@@ -33,7 +33,7 @@ inline fun <reified T : Result> JsonElement?.deserializeResult(): T? {
 
 	return if (T::class == ListToolsResult::class) {
 		// Decode using JsonSchema.json for ListToolsResult
-		SchemaEncoder.format.decodeFromJsonElement<ListToolsResult>(this) as T
+		kojaJson.decodeFromJsonElement<ListToolsResult>(this) as T
 	} else {
 		// Decode using KMCP.json for all other result types
 		mcpJson.decodeFromJsonElement<T>(this)

@@ -18,7 +18,6 @@ kotlin {
 	sourceSets {
 		commonMain {
 			dependencies {
-				implementation(libs.ondrsh.jsonschema)
 				implementation(libs.kotlinx.atomicfu)
 				implementation(libs.kotlinx.coroutines.core)
 				implementation(libs.square.okio)

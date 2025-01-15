@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.serializer
 import sh.ondr.kmcp.runtime.core.MCP_VERSION
 import sh.ondr.kmcp.runtime.core.mcpPromptHandlers
 import sh.ondr.kmcp.runtime.core.mcpPromptParams
@@ -43,6 +44,9 @@ import sh.ondr.kmcp.schema.tools.CallToolRequest.CallToolParams
 import sh.ondr.kmcp.schema.tools.CallToolResult
 import sh.ondr.kmcp.schema.tools.ListToolsRequest.ListToolsParams
 import sh.ondr.kmcp.schema.tools.ListToolsResult
+import sh.ondr.kmcp.schema.tools.Tool
+import sh.ondr.koja.Schema
+import sh.ondr.koja.toSchema
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KFunction
 
@@ -189,11 +193,17 @@ class Server private constructor(
 	}
 
 	override suspend fun handleListToolsRequest(params: ListToolsParams?): ListToolsResult {
-		val toolInfos = tools.map { name ->
-			mcpToolParams[name] ?: throw IllegalStateException("ToolInfo not found for tool: $name")
-		}
-		// TODO fix
-		return ListToolsResult(tools = listOf())
+		return ListToolsResult(
+			tools = tools.map { name ->
+				val params = mcpToolParams[name] ?: throw IllegalStateException("Tool not found for tool: $name")
+				val paramsSchema = params.serializer().descriptor.toSchema() as Schema.ObjectSchema
+				Tool(
+					name = name,
+					description = paramsSchema.description,
+					inputSchema = paramsSchema.copy(description = null), // Remove description from synthetic params class
+				)
+			},
+		)
 	}
 
 	override suspend fun handleListResourcesRequest(params: ListResourcesParams?): ListResourcesResult {
