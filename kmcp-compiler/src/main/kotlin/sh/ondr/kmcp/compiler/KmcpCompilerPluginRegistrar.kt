@@ -16,7 +16,7 @@ class KmcpCompilerPluginRegistrar : CompilerPluginRegistrar() {
 	override val supportsK2 = true
 
 	override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
-		val logger = configuration[CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE]
+		val messageCollector = configuration[CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE]
 
 		IrGenerationExtension.registerExtension(
 			object : IrGenerationExtension {
@@ -24,8 +24,13 @@ class KmcpCompilerPluginRegistrar : CompilerPluginRegistrar() {
 					moduleFragment: IrModuleFragment,
 					pluginContext: IrPluginContext,
 				) {
+					val moduleName = moduleFragment.descriptor.name.asStringStripSpecialMarkers()
 					moduleFragment.transform(
-						KmcpIrTransformer(logger, pluginContext),
+						KmcpIrTransformer(
+							messageCollector = messageCollector,
+							pluginContext = pluginContext,
+							isTest = moduleName.endsWith("_test"),
+						),
 						data = null,
 					)
 				}

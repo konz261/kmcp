@@ -10,7 +10,10 @@ kotlin {
 	iosArm64()
 	iosX64()
 	iosSimulatorArm64()
-	js(IR) { nodejs() }
+	js(IR) {
+		nodejs()
+		binaries.library()
+	}
 	jvm()
 	linuxX64()
 	macosArm64()

@@ -19,9 +19,11 @@ import org.jetbrains.kotlin.name.FqName
 class KmcpIrTransformer(
 	private val messageCollector: MessageCollector,
 	private val pluginContext: IrPluginContext,
+	private val isTest: Boolean = false,
 ) : IrElementTransformerVoid() {
 	private val pkg = "sh.ondr.kmcp"
-	private val registryClassId = ClassId.topLevel(FqName("$pkg.generated.initializer.KmcpInitializer"))
+	val initializerFq = if (isTest) "$pkg.generated.initializer.KmcpTestInitializer" else "$pkg.generated.initializer.KmcpInitializer"
+	private val initializerClassId = ClassId.topLevel(FqName(initializerFq))
 
 	override fun visitConstructorCall(expression: IrConstructorCall): IrExpression {
 		expression.transformChildrenVoid()
@@ -31,7 +33,7 @@ class KmcpIrTransformer(
 		val isInServer = callee.constructedClass.parentClassOrNull?.name?.asString() == "Server"
 		val isInRuntimePackage = callee.constructedClass.parentClassOrNull?.packageFqName?.asString() == "sh.ondr.kmcp.runtime"
 		if (isNamedBuilder && isInServer && isInRuntimePackage) {
-			val initializerSymbol = pluginContext.referenceClass(registryClassId) ?: error("Could not find KmcpInitializer")
+			val initializerSymbol = pluginContext.referenceClass(initializerClassId) ?: error("Could not find KmcpInitializer")
 
 			val builder =
 				DeclarationIrBuilder(

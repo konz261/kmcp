@@ -37,19 +37,13 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 		val kojaGradlePlugin = KojaGradlePlugin()
 		kojaGradlePlugin.apply(target)
 
-		// Specifically add koja compiler plugin to the classpath
-		val configuration = target.configurations.getByName("kotlinCompilerPluginClasspath")
-		configuration.dependencies.add(
-			target.dependencies.create("sh.ondr.koja:koja-compiler:0.2.0"),
-		)
-
 		// Apply in any case
 		target.pluginManager.apply("com.google.devtools.ksp")
 
 		// Apply to Kotlin Multiplatform projects
 		target.pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
 			val kotlin = target.extensions.getByType(KotlinMultiplatformExtension::class.java)
-			// Add jsonschema and runtime to commonMain
+			// Add runtime to commonMain
 			kotlin.sourceSets.getByName("commonMain").dependencies {
 				if (target.name != "kmcp-runtime") {
 					implementation(runtimeDependency)
@@ -73,12 +67,26 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 					}
 				}
 			}
+
+			kotlin.targets.configureEach { kotlinTarget ->
+				kotlinTarget.compilations.configureEach { compilation ->
+					val pluginConfigName = "kotlinCompilerPluginClasspath" +
+						kotlinTarget.name.replaceFirstChar { it.uppercaseChar() } +
+						compilation.name.replaceFirstChar { it.uppercaseChar() }
+
+					val pluginConfig = target.configurations.findByName(pluginConfigName) ?: return@configureEach
+
+					pluginConfig.dependencies.add(
+						target.dependencies.create("sh.ondr.koja:koja-compiler:0.2.0"),
+					)
+				}
+			}
 		}
 
 		// Apply to pure JVM projects
 		target.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
 			val kotlinJvm = target.extensions.getByType(org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension::class.java)
-			// Add jsonschema and runtime to main
+			// Add runtime to main
 			kotlinJvm.sourceSets.getByName("main").dependencies {
 				if (target.name != "kmcp-runtime") {
 					implementation(runtimeDependency)
@@ -121,8 +129,13 @@ class KmcpGradlePlugin : KotlinCompilerPluginSupportPlugin {
 
 	override fun applyToCompilation(kotlinCompilation: KotlinCompilation<*>): Provider<List<SubpluginOption>> {
 		val project = kotlinCompilation.target.project
+		val isTestCompilation = (kotlinCompilation.name == "test")
+
 		return project.provider {
-			listOf(SubpluginOption(key = "enabled", value = "true"))
+			buildList {
+				SubpluginOption("enabled", "true")
+				SubpluginOption("isTestSet", isTestCompilation.toString())
+			}
 		}
 	}
 }

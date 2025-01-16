@@ -21,7 +21,7 @@ import sh.ondr.koja.kojaJson
  */
 inline fun <reified T : Result> serializeResult(value: T): JsonElement {
 	return if (value is ListToolsResult) {
-		// Workaround to serialize JsonSchema correctly
+		// Workaround to serialize @JsonSchema correctly
 		kojaJson.encodeToJsonElement<ListToolsResult>(value)
 	} else {
 		mcpJson.encodeToJsonElement(value)
@@ -32,7 +32,7 @@ inline fun <reified T : Result> JsonElement?.deserializeResult(): T? {
 	if (this == null) return null
 
 	return if (T::class == ListToolsResult::class) {
-		// Decode using JsonSchema.json for ListToolsResult
+		// Workaround to deserialize @JsonSchema correctly
 		kojaJson.decodeFromJsonElement<ListToolsResult>(this) as T
 	} else {
 		// Decode using KMCP.json for all other result types

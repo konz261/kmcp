@@ -6,6 +6,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.serializer
 import sh.ondr.kmcp.runtime.core.MCP_VERSION
 import sh.ondr.kmcp.runtime.core.mcpPromptHandlers
@@ -16,6 +19,7 @@ import sh.ondr.kmcp.runtime.error.MethodNotFoundException
 import sh.ondr.kmcp.runtime.error.ResourceNotFoundException
 import sh.ondr.kmcp.runtime.resources.ResourceProvider
 import sh.ondr.kmcp.runtime.resources.ResourceProviderManager
+import sh.ondr.kmcp.runtime.serialization.toJsonObject
 import sh.ondr.kmcp.runtime.transport.Transport
 import sh.ondr.kmcp.schema.capabilities.Implementation
 import sh.ondr.kmcp.schema.capabilities.InitializeRequest.InitializeParams
@@ -29,6 +33,8 @@ import sh.ondr.kmcp.schema.prompts.GetPromptRequest.GetPromptParams
 import sh.ondr.kmcp.schema.prompts.GetPromptResult
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest.ListPromptsParams
 import sh.ondr.kmcp.schema.prompts.ListPromptsResult
+import sh.ondr.kmcp.schema.prompts.Prompt
+import sh.ondr.kmcp.schema.prompts.PromptArgument
 import sh.ondr.kmcp.schema.resources.ListResourceTemplatesRequest.ListResourceTemplatesParams
 import sh.ondr.kmcp.schema.resources.ListResourceTemplatesResult
 import sh.ondr.kmcp.schema.resources.ListResourcesRequest.ListResourcesParams
@@ -166,12 +172,30 @@ class Server private constructor(
 	}
 
 	override suspend fun handleListPromptsRequest(params: ListPromptsParams?): ListPromptsResult {
-		val promptInfos = prompts.map { promptName ->
-			mcpPromptParams[promptName]
-				?: throw IllegalStateException("PromptInfo not found for prompt: $promptName")
-		}
-		// TODO fix
-		return ListPromptsResult(prompts = listOf())
+		return ListPromptsResult(
+			prompts = prompts.map { name ->
+				val params = mcpPromptParams[name] ?: throw IllegalStateException("Prompt not found: $name")
+				val paramsSchema = params.serializer().descriptor.toSchema() as Schema.ObjectSchema
+				val requiredParams = paramsSchema
+					.toJsonObject()
+					.jsonObject["required"]
+					?.jsonArray
+					?.map {
+						it.jsonPrimitive.content
+					} ?: emptyList()
+				Prompt(
+					name = name,
+					description = paramsSchema.description,
+					arguments = paramsSchema.copy(description = null).properties!!.map { (name, schema) ->
+						PromptArgument(
+							name = name,
+							description = schema.description,
+							required = name in requiredParams,
+						)
+					},
+				)
+			},
+		)
 	}
 
 	override suspend fun handleGetPromptRequest(params: GetPromptParams): GetPromptResult {
@@ -195,7 +219,7 @@ class Server private constructor(
 	override suspend fun handleListToolsRequest(params: ListToolsParams?): ListToolsResult {
 		return ListToolsResult(
 			tools = tools.map { name ->
-				val params = mcpToolParams[name] ?: throw IllegalStateException("Tool not found for tool: $name")
+				val params = mcpToolParams[name] ?: throw IllegalStateException("Tool not found: $name")
 				val paramsSchema = params.serializer().descriptor.toSchema() as Schema.ObjectSchema
 				Tool(
 					name = name,

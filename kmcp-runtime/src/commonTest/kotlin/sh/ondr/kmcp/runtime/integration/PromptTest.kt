@@ -26,10 +26,11 @@ import kotlin.test.assertNotNull
 
 /**
  * This function prompts the user to review some code
+ * @param code The code to review
  */
 @McpPrompt
 fun codeReviewPrompt(code: String) =
-	buildPrompt("Code review prompt") {
+	buildPrompt("The code review prompt") {
 		user { "Please review the code: $code" }
 	}
 
@@ -71,10 +72,10 @@ class PromptsTest {
 				clientOutgoing("""{"method":"prompts/list","jsonrpc":"2.0","id":"2"}""")
 				serverIncoming("""{"method":"prompts/list","jsonrpc":"2.0","id":"2"}""")
 				serverOutgoing(
-					"""{"jsonrpc":"2.0","id":"2","result":{"prompts":[{"name":"codeReviewPrompt","description":"This function prompts the user to review some code","arguments":[{"name":"code","required":true}]}]}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"prompts":[{"name":"codeReviewPrompt","description":"This function prompts the user to review some code","arguments":[{"name":"code","description":"The code to review","required":true}]}]}}""",
 				)
 				clientIncoming(
-					"""{"jsonrpc":"2.0","id":"2","result":{"prompts":[{"name":"codeReviewPrompt","description":"This function prompts the user to review some code","arguments":[{"name":"code","required":true}]}]}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"prompts":[{"name":"codeReviewPrompt","description":"This function prompts the user to review some code","arguments":[{"name":"code","description":"The code to review","required":true}]}]}}""",
 				)
 			}
 
@@ -131,10 +132,10 @@ class PromptsTest {
 					"""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"codeReviewPrompt","arguments":{"code":"some code here"}}}""",
 				)
 				serverOutgoing(
-					"""{"jsonrpc":"2.0","id":"2","result":{"description":"Code review prompt","messages":[{"role":"user","content":{"type":"text","text":"Please review the code: some code here"}}]}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"description":"The code review prompt","messages":[{"role":"user","content":{"type":"text","text":"Please review the code: some code here"}}]}}""",
 				)
 				clientIncoming(
-					"""{"jsonrpc":"2.0","id":"2","result":{"description":"Code review prompt","messages":[{"role":"user","content":{"type":"text","text":"Please review the code: some code here"}}]}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"description":"The code review prompt","messages":[{"role":"user","content":{"type":"text","text":"Please review the code: some code here"}}]}}""",
 				)
 			}
 
@@ -143,7 +144,7 @@ class PromptsTest {
 			// Optionally, verify the actual response object
 			val getPromptResult = response.result?.deserializeResult<GetPromptResult>()
 			assertNotNull(getPromptResult)
-			assertEquals("Code review prompt", getPromptResult.description)
+			assertEquals("The code review prompt", getPromptResult.description)
 			assertEquals(1, getPromptResult.messages.size)
 			val msg = getPromptResult.messages.first()
 			assertEquals(Role.USER, msg.role)
