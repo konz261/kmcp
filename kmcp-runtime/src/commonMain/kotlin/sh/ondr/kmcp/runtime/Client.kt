@@ -3,15 +3,25 @@
 package sh.ondr.kmcp.runtime
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.InternalSerializationApi
 import sh.ondr.kmcp.runtime.core.MCP_VERSION
+import sh.ondr.kmcp.runtime.core.pagination.PaginatedEndpoint
+import sh.ondr.kmcp.runtime.serialization.deserializeResult
 import sh.ondr.kmcp.runtime.transport.Transport
 import sh.ondr.kmcp.schema.capabilities.ClientCapabilities
 import sh.ondr.kmcp.schema.capabilities.Implementation
 import sh.ondr.kmcp.schema.capabilities.InitializeRequest
 import sh.ondr.kmcp.schema.capabilities.InitializeRequest.InitializeParams
 import sh.ondr.kmcp.schema.capabilities.InitializedNotification
+import sh.ondr.kmcp.schema.core.JsonRpcRequest
 import sh.ondr.kmcp.schema.core.JsonRpcResponse
+import sh.ondr.kmcp.schema.core.PaginatedResult
+import sh.ondr.kmcp.schema.prompts.ListPromptsRequest
+import sh.ondr.kmcp.schema.resources.ListResourceTemplatesRequest
+import sh.ondr.kmcp.schema.resources.ListResourcesRequest
+import sh.ondr.kmcp.schema.tools.ListToolsRequest
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -82,6 +92,56 @@ class Client private constructor(
 	 * Checks if the client has completed the initialization phase.
 	 */
 	fun isInitialized(): Boolean = initialized
+
+	/**
+	 * Repeatedly calls a paginated [endpoint], emitting one set of [ITEMS] per page
+	 * until [PaginatedResult.nextCursor] is `null` or an error is thrown.
+	 *
+	 * **Usage**:
+	 * ```
+	 * // Example: Fetch all prompt pages
+	 * val allPrompts = mutableListOf<Prompt>()
+	 * client.fetchPagesAsFlow(ListPromptsRequest)
+	 *     .collect { prompts ->
+	 *         println("Received page with ${prompts.size} prompts")
+	 *         allPrompts += prompts
+	 *     }
+	 * ```
+	 *
+	 * In practice, [endpoint] can be one of the following:
+	 * - [ListPromptsRequest]
+	 * - [ListToolsRequest]
+	 * - [ListResourcesRequest]
+	 * - [ListResourceTemplatesRequest]
+	 *
+	 * @param endpoint A [PaginatedEndpoint] describing how to build requests and transform results.
+	 * @return A [Flow] that emits one [ITEMS] instance per page.
+	 */
+	inline fun <REQ : JsonRpcRequest, reified RES : PaginatedResult, ITEMS> fetchPagesAsFlow(
+		endpoint: PaginatedEndpoint<REQ, RES, ITEMS>,
+	): Flow<ITEMS> =
+		flow {
+			var cursor: String? = null
+			do {
+				val response = sendRequest { realId ->
+					endpoint.requestFactory.create(realId, cursor)
+				}
+
+				response.error?.let { error ->
+					throw IllegalStateException(
+						"Server error (code=${error.code}): ${error.message}",
+					)
+				}
+				val result = response.result
+					?.deserializeResult<RES>()
+					?: error("Null or invalid result from server.")
+
+				val items = endpoint.transform(result)
+				emit(items)
+
+				cursor = result.nextCursor
+			} while (cursor != null)
+		}
 
 	/**
 	 * Builder for creating a [Client] instance.

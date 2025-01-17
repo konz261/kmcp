@@ -15,6 +15,7 @@ import sh.ondr.kmcp.runtime.core.mcpPromptHandlers
 import sh.ondr.kmcp.runtime.core.mcpPromptParams
 import sh.ondr.kmcp.runtime.core.mcpToolHandlers
 import sh.ondr.kmcp.runtime.core.mcpToolParams
+import sh.ondr.kmcp.runtime.core.pagination.paginate
 import sh.ondr.kmcp.runtime.error.MethodNotFoundException
 import sh.ondr.kmcp.runtime.error.ResourceNotFoundException
 import sh.ondr.kmcp.runtime.resources.ResourceProvider
@@ -64,14 +65,15 @@ import kotlin.reflect.KFunction
  * They can also be added or removed dynamically at runtime if needed.
  */
 class Server private constructor(
-	private val transport: Transport,
-	private val tools: MutableList<String>,
-	private val prompts: MutableList<String>,
-	private val logger: suspend (String) -> Unit,
+	builderResourceProviders: List<ResourceProvider>,
 	private val dispatcher: CoroutineContext,
+	private val logger: suspend (String) -> Unit,
+	private val pageSize: Int,
+	private val prompts: MutableList<String>,
 	private val serverName: String,
 	private val serverVersion: String,
-	builderResourceProviders: List<ResourceProvider>,
+	private val tools: MutableList<String>,
+	private val transport: Transport,
 ) : McpComponent(
 		transport = transport,
 		logger = logger,
@@ -172,8 +174,8 @@ class Server private constructor(
 	}
 
 	override suspend fun handleListPromptsRequest(params: ListPromptsParams?): ListPromptsResult {
-		return ListPromptsResult(
-			prompts = prompts.map { name ->
+		val (promptsOnPage, nextCursor) = paginate(
+			items = prompts.map { name ->
 				val params = mcpPromptParams[name] ?: throw IllegalStateException("Prompt not found: $name")
 				val paramsSchema = params.serializer().descriptor.toSchema() as Schema.ObjectSchema
 				val requiredParams = paramsSchema
@@ -195,6 +197,12 @@ class Server private constructor(
 					},
 				)
 			},
+			cursor = params?.cursor,
+			pageSize = pageSize,
+		)
+		return ListPromptsResult(
+			prompts = promptsOnPage,
+			nextCursor = nextCursor,
 		)
 	}
 
@@ -282,6 +290,7 @@ class Server private constructor(
 		private var builderTransport: Transport? = null
 		private var builderLogger: suspend (String) -> Unit = {}
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
+		private var builderPageSize: Int = 20
 		private var builderServerName: String = "TestServer"
 		private var builderServerVersion: String = "1.0.0"
 		private val builderResourceProviders = mutableListOf<ResourceProvider>()
@@ -360,6 +369,16 @@ class Server private constructor(
 			}
 
 		/**
+		 * Sets the default page size for paginated responses.
+		 * Defaults to 20.
+		 */
+		fun withPageSize(pageSize: Int) =
+			apply {
+				require(pageSize > 0) { "Page size must be greater than 0." }
+				builderPageSize = pageSize
+			}
+
+		/**
 		 * Sets the server's name and version, reported in the `initialize` response.
 		 * Defaults to "TestServer" and "1.0.0" if not provided.
 		 */
@@ -382,14 +401,15 @@ class Server private constructor(
 
 			val transport = builderTransport ?: error("Transport must be set before building.")
 			return Server(
-				transport = transport,
-				tools = builderTools.toMutableList(),
-				prompts = builderPrompts.toMutableList(),
-				logger = builderLogger,
+				builderResourceProviders = builderResourceProviders.toList(),
 				dispatcher = builderDispatcher,
+				logger = builderLogger,
+				pageSize = builderPageSize,
+				prompts = builderPrompts.toMutableList(),
 				serverName = builderServerName,
 				serverVersion = builderServerVersion,
-				builderResourceProviders = builderResourceProviders.toList(),
+				tools = builderTools.toMutableList(),
+				transport = transport,
 			)
 		}
 	}
