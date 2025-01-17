@@ -23,6 +23,7 @@ import sh.ondr.kmcp.schema.resources.ListResourcesResult
 import sh.ondr.kmcp.schema.resources.ReadResourceRequest
 import sh.ondr.kmcp.schema.resources.ReadResourceRequest.ReadResourceParams
 import sh.ondr.kmcp.schema.resources.ReadResourceResult
+import sh.ondr.kmcp.schema.resources.Resource
 import sh.ondr.kmcp.schema.resources.ResourceContents
 import sh.ondr.kmcp.schema.resources.SubscribeRequest
 import sh.ondr.kmcp.schema.resources.UnsubscribeRequest
@@ -430,5 +431,114 @@ class DiscreteFileProviderTest {
 			advanceUntilIdle()
 
 			assertTrue(log.isEmpty(), "No further notifications should appear after unsubscribing.")
+		}
+
+	@OptIn(ExperimentalCoroutinesApi::class)
+	@Test
+	fun testListResourcesPaginated() =
+		runTest {
+			val dispatcher = StandardTestDispatcher(testScheduler)
+			val log = mutableListOf<String>()
+
+			// 1) Prepare a FakeFileSystem with 7 files under /discreteRoot
+			val fs = FakeFileSystem()
+			val rootDir = "/discreteRoot".toPath()
+			fs.createDirectories(rootDir)
+
+			// Create resource files: file0.txt ... file6.txt
+			val initialFiles = buildList<File> {
+				for (i in 0 until 7) {
+					val filename = "file$i.txt"
+					fs.write(rootDir.resolve(filename)) {
+						writeUtf8("Contents of $filename")
+					}
+					add(
+						File(
+							relativePath = filename,
+							name = filename,
+							description = "File at $filename",
+						),
+					)
+				}
+			}
+
+			val provider = DiscreteFileProvider(
+				fileSystem = fs,
+				rootDir = rootDir,
+				initialFiles = initialFiles,
+			)
+
+			// 2) Build the server with pageSize=3 and the DiscreteFileProvider
+			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val server = Server.Builder()
+				.withDispatcher(dispatcher)
+				.withLogger { line -> log.server(line) }
+				.withTransport(serverTransport)
+				.withResourceProvider(provider)
+				.withPageSize(3)
+				.build()
+			server.start()
+
+			// 3) Build the client
+			val client = Client.Builder()
+				.withTransport(clientTransport)
+				.withDispatcher(dispatcher)
+				.withLogger { line -> log.client(line) }
+				.withClientInfo("TestClient", "1.0.0")
+				.build()
+			client.start()
+
+			// (A) Initialization
+			client.initialize()
+			advanceUntilIdle()
+			log.clear()
+
+			// (B) Use fetchPagesAsFlow to list resources
+			val allResources = mutableListOf<Resource>()
+			var pageCount = 0
+
+			client.fetchPagesAsFlow(ListResourcesRequest).collect { pageOfResources ->
+				pageCount++
+				allResources += pageOfResources
+			}
+			advanceUntilIdle()
+
+			// We should get 3 pages with a total of 7 resources, i.e. [3, 3, 1]
+			assertEquals(3, pageCount, "Expected exactly 3 pages (3 + 3 + 1).")
+			assertEquals(7, allResources.size, "Should have 7 total resources listed.")
+
+			val expectedLogs = logLines {
+				// 1st page
+				clientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"2"}""")
+				serverIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"2"}""")
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://file0.txt","name":"file0.txt","description":"File at file0.txt","mimeType":"text/plain"},{"uri":"file://file1.txt","name":"file1.txt","description":"File at file1.txt","mimeType":"text/plain"},{"uri":"file://file2.txt","name":"file2.txt","description":"File at file2.txt","mimeType":"text/plain"}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6M30="}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://file0.txt","name":"file0.txt","description":"File at file0.txt","mimeType":"text/plain"},{"uri":"file://file1.txt","name":"file1.txt","description":"File at file1.txt","mimeType":"text/plain"},{"uri":"file://file2.txt","name":"file2.txt","description":"File at file2.txt","mimeType":"text/plain"}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6M30="}}""",
+				)
+
+				// 2nd page
+				clientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6M30="}}""")
+				serverIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6M30="}}""")
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"3","result":{"resources":[{"uri":"file://file3.txt","name":"file3.txt","description":"File at file3.txt","mimeType":"text/plain"},{"uri":"file://file4.txt","name":"file4.txt","description":"File at file4.txt","mimeType":"text/plain"},{"uri":"file://file5.txt","name":"file5.txt","description":"File at file5.txt","mimeType":"text/plain"}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6M30="}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"3","result":{"resources":[{"uri":"file://file3.txt","name":"file3.txt","description":"File at file3.txt","mimeType":"text/plain"},{"uri":"file://file4.txt","name":"file4.txt","description":"File at file4.txt","mimeType":"text/plain"},{"uri":"file://file5.txt","name":"file5.txt","description":"File at file5.txt","mimeType":"text/plain"}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6M30="}}""",
+				)
+
+				// 3rd page
+				clientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6M30="}}""")
+				serverIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6M30="}}""")
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"4","result":{"resources":[{"uri":"file://file6.txt","name":"file6.txt","description":"File at file6.txt","mimeType":"text/plain"}]}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"4","result":{"resources":[{"uri":"file://file6.txt","name":"file6.txt","description":"File at file6.txt","mimeType":"text/plain"}]}}""",
+				)
+			}
+			assertLinesMatch(expectedLogs, log, "paginated resources logs")
+			log.clear()
 		}
 }

@@ -346,4 +346,134 @@ class TemplateFileProviderTest {
 				"No further notifications should appear after unsubscribing from file:///sub/folder/notes.txt",
 			)
 		}
+
+	@OptIn(ExperimentalCoroutinesApi::class)
+	@Test
+	fun testListResourceTemplatesPaginated() =
+		runTest {
+			val dispatcher = StandardTestDispatcher(testScheduler)
+			val log = mutableListOf<String>()
+
+			// Create multiple TemplateFileProviders, each referencing a different rootDir,
+			// so they remain independent. Each provider yields 1 template in listResourceTemplates().
+			val fsA = FakeFileSystem()
+			val fsB = FakeFileSystem()
+			val fsC = FakeFileSystem()
+
+			// We don't need actual directories since we won't read them,
+			// but let's create them for demonstration:
+			fsA.createDirectories("/rootA".toPath())
+			fsB.createDirectories("/rootB".toPath())
+			fsC.createDirectories("/rootC".toPath())
+
+			val providerA = TemplateFileProvider(
+				fileSystem = fsA,
+				rootDir = "/rootA".toPath(),
+				name = "Template A",
+				description = "Allows reading files from /rootA",
+			)
+			val providerB = TemplateFileProvider(
+				fileSystem = fsB,
+				rootDir = "/rootB".toPath(),
+				name = "Template B",
+				description = "Allows reading files from /rootB",
+			)
+			val providerC = TemplateFileProvider(
+				fileSystem = fsC,
+				rootDir = "/rootC".toPath(),
+				name = "Template C",
+				description = "Allows reading files from /rootC",
+			)
+
+			// 3 providers => 3 templates total. We'll set pageSize=1 => 3 pages.
+			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+
+			val server = Server.Builder()
+				.withDispatcher(dispatcher)
+				.withLogger { line -> log.server(line) }
+				.withTransport(serverTransport)
+				.withPageSize(1) // Force 1 template per page
+				.withResourceProvider(providerA)
+				.withResourceProvider(providerB)
+				.withResourceProvider(providerC)
+				.build()
+
+			server.start()
+
+			val client = Client.Builder()
+				.withTransport(clientTransport)
+				.withDispatcher(dispatcher)
+				.withLogger { line -> log.client(line) }
+				.withClientInfo("TestClient", "1.0.0")
+				.build()
+			client.start()
+
+			// (A) Initialization
+			client.initialize()
+			advanceUntilIdle()
+			log.clear()
+
+			// (B) List all resource templates using pagination
+			val allTemplates = mutableListOf<sh.ondr.kmcp.schema.resources.ResourceTemplate>()
+			var pageCount = 0
+
+			client.fetchPagesAsFlow(ListResourceTemplatesRequest).collect { pageOfTemplates ->
+				pageCount++
+				allTemplates += pageOfTemplates
+			}
+			advanceUntilIdle()
+
+			// We should see exactly 3 pages, each with 1 template => total 3.
+			assertEquals(3, pageCount, "Expected 3 pages, one for each provider's template")
+			assertEquals(3, allTemplates.size, "Should have 3 total templates")
+
+			// Optionally, check the names to see that we got A, B, C in some order
+			val names = allTemplates.map { it.name }.toSet()
+			assertEquals(
+				setOf("Template A", "Template B", "Template C"),
+				names,
+				"Should see all 3 named templates in the result",
+			)
+
+			val expectedLogs = logLines {
+				// 1st page
+				clientOutgoing("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"2"}""")
+				serverIncoming("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"2"}""")
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"2","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template A","description":"Allows reading files from /rootA"}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6MX0="}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"2","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template A","description":"Allows reading files from /rootA"}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6MX0="}}""",
+				)
+
+				// 2nd page
+				clientOutgoing(
+					"""{"method":"resources/templates/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6MX0="}}""",
+				)
+				serverIncoming(
+					"""{"method":"resources/templates/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6MX0="}}""",
+				)
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"3","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template B","description":"Allows reading files from /rootB"}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6MX0="}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"3","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template B","description":"Allows reading files from /rootB"}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6MX0="}}""",
+				)
+
+				// 3rd page
+				clientOutgoing(
+					"""{"method":"resources/templates/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6MX0="}}""",
+				)
+				serverIncoming(
+					"""{"method":"resources/templates/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6MX0="}}""",
+				)
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"4","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template C","description":"Allows reading files from /rootC"}]}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"4","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template C","description":"Allows reading files from /rootC"}]}}""",
+				)
+			}
+			assertLinesMatch(expectedLogs, log, "paginated templates logs")
+		}
 }

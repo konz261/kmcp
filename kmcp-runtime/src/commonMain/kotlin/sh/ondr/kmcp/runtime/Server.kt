@@ -174,29 +174,30 @@ class Server private constructor(
 	}
 
 	override suspend fun handleListPromptsRequest(params: ListPromptsParams?): ListPromptsResult {
+		val allPrompts = prompts.map { name ->
+			val params = mcpPromptParams[name] ?: throw IllegalStateException("Prompt not found: $name")
+			val paramsSchema = params.serializer().descriptor.toSchema() as Schema.ObjectSchema
+			val requiredParams = paramsSchema
+				.toJsonObject()
+				.jsonObject["required"]
+				?.jsonArray
+				?.map {
+					it.jsonPrimitive.content
+				} ?: emptyList()
+			Prompt(
+				name = name,
+				description = paramsSchema.description,
+				arguments = paramsSchema.copy(description = null).properties!!.map { (name, schema) ->
+					PromptArgument(
+						name = name,
+						description = schema.description,
+						required = name in requiredParams,
+					)
+				},
+			)
+		}
 		val (promptsOnPage, nextCursor) = paginate(
-			items = prompts.map { name ->
-				val params = mcpPromptParams[name] ?: throw IllegalStateException("Prompt not found: $name")
-				val paramsSchema = params.serializer().descriptor.toSchema() as Schema.ObjectSchema
-				val requiredParams = paramsSchema
-					.toJsonObject()
-					.jsonObject["required"]
-					?.jsonArray
-					?.map {
-						it.jsonPrimitive.content
-					} ?: emptyList()
-				Prompt(
-					name = name,
-					description = paramsSchema.description,
-					arguments = paramsSchema.copy(description = null).properties!!.map { (name, schema) ->
-						PromptArgument(
-							name = name,
-							description = schema.description,
-							required = name in requiredParams,
-						)
-					},
-				)
-			},
+			items = allPrompts,
 			cursor = params?.cursor,
 			pageSize = pageSize,
 		)
@@ -225,22 +226,37 @@ class Server private constructor(
 	}
 
 	override suspend fun handleListToolsRequest(params: ListToolsParams?): ListToolsResult {
+		val allTools = tools.map { name ->
+			val params = mcpToolParams[name] ?: throw IllegalStateException("Tool not found: $name")
+			val paramsSchema = params.serializer().descriptor.toSchema() as Schema.ObjectSchema
+			Tool(
+				name = name,
+				description = paramsSchema.description,
+				inputSchema = paramsSchema.copy(description = null),
+			)
+		}
+		val (toolsOnPage, nextCursor) = paginate(
+			items = allTools,
+			cursor = params?.cursor,
+			pageSize = pageSize,
+		)
 		return ListToolsResult(
-			tools = tools.map { name ->
-				val params = mcpToolParams[name] ?: throw IllegalStateException("Tool not found: $name")
-				val paramsSchema = params.serializer().descriptor.toSchema() as Schema.ObjectSchema
-				Tool(
-					name = name,
-					description = paramsSchema.description,
-					inputSchema = paramsSchema.copy(description = null), // Remove description from synthetic params class
-				)
-			},
+			tools = toolsOnPage,
+			nextCursor = nextCursor,
 		)
 	}
 
 	override suspend fun handleListResourcesRequest(params: ListResourcesParams?): ListResourcesResult {
-		val resources = resourceManager.listResources()
-		return ListResourcesResult(resources = resources)
+		val allResources = resourceManager.listResources()
+		val (resourcesOnPage, nextCursor) = paginate(
+			items = allResources,
+			cursor = params?.cursor,
+			pageSize = pageSize,
+		)
+		return ListResourcesResult(
+			resources = resourcesOnPage,
+			nextCursor = nextCursor,
+		)
 	}
 
 	override suspend fun handleReadResourceRequest(params: ReadResourceParams): ReadResourceResult {
@@ -250,8 +266,16 @@ class Server private constructor(
 	}
 
 	override suspend fun handleListResourceTemplatesRequest(params: ListResourceTemplatesParams?): ListResourceTemplatesResult {
-		val templates = resourceManager.listResourceTemplates()
-		return ListResourceTemplatesResult(resourceTemplates = templates)
+		val allTemplates = resourceManager.listResourceTemplates()
+		val (templatesOnPage, nextCursor) = paginate(
+			items = allTemplates,
+			cursor = params?.cursor,
+			pageSize = pageSize,
+		)
+		return ListResourceTemplatesResult(
+			resourceTemplates = templatesOnPage,
+			nextCursor = nextCursor,
+		)
 	}
 
 	override suspend fun handleSubscribeRequest(params: SubscribeParams): EmptyResult {

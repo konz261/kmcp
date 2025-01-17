@@ -19,20 +19,24 @@ import sh.ondr.kmcp.schema.content.ToolContent
 import sh.ondr.kmcp.schema.tools.CallToolRequest
 import sh.ondr.kmcp.schema.tools.CallToolResult
 import sh.ondr.kmcp.schema.tools.ListToolsRequest
+import sh.ondr.kmcp.schema.tools.Tool
 import sh.ondr.kmcp.server
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
+/**
+ * Sends an email to [recipients] with the given [title] and [body].
+ */
 @McpTool
 fun sendEmail(
 	recipients: List<String>,
 	title: String,
 	body: String?,
-) = "Sending email to $recipients with title $title and body $body".toTextContent()
+) = "Sending email to $recipients with title '$title' and body '$body'".toTextContent()
 
 /**
- * This function greets the user
+ * Greets a user by [name], optionally specifying an [age].
  */
 @McpTool
 suspend fun greet(
@@ -41,6 +45,12 @@ suspend fun greet(
 ): ToolContent {
 	return TextContent("Hello, $name, you are $age years old!")
 }
+
+/**
+ * Reverses a given string [s].
+ */
+@McpTool
+fun reverseString(s: String) = "Reversed: ${s.reversed()}".toTextContent()
 
 class ToolsTest {
 	@OptIn(ExperimentalCoroutinesApi::class)
@@ -51,9 +61,13 @@ class ToolsTest {
 			val log = mutableListOf<String>()
 
 			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
-				.withTools(::greet, ::sendEmail)
+				.withPageSize(2)
+				.withTool(::greet)
+				.withTool(::sendEmail)
+				.withTool(::reverseString)
 				.withTransport(serverTransport)
 				.withLogger { line -> log.server(line) }
 				.build()
@@ -72,22 +86,42 @@ class ToolsTest {
 			advanceUntilIdle()
 			log.clear()
 
-			// Send the tools/list request
-			val response = client.sendRequest { id -> ListToolsRequest(id = id) }
+			// Use fetchPagesAsFlow to retrieve tools across multiple pages
+			val allTools = mutableListOf<Tool>()
+			var pageCount = 0
+
+			client.fetchPagesAsFlow(ListToolsRequest).collect { pageOfTools ->
+				pageCount++
+				allTools += pageOfTools
+			}
 			advanceUntilIdle()
 
-			// Construct the expected lines using the DSL
+			// With 3 total tools and pageSize=2 => 2 pages
+			assertEquals(2, pageCount, "Expected 2 pages of tools")
+			assertEquals(3, allTools.size, "Expected a total of 3 tools")
+
 			val expected = logLines {
+				// 1st page
 				clientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
 				serverIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
 				serverOutgoing(
-					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"This function greets the user","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}]}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"Greets a user by [name], optionally specifying an [age].","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","description":"Sends an email to [recipients] with the given [title] and [body].","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
 				)
 				clientIncoming(
-					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"This function greets the user","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}]}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"Greets a user by [name], optionally specifying an [age].","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","description":"Sends an email to [recipients] with the given [title] and [body].","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
+				)
+
+				// 2nd page
+				clientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
+				serverIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"3","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}}]}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"3","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}}]}}""",
 				)
 			}
-			assertLinesMatch(expected, log, "tools list test")
+			assertLinesMatch(expected, log, "tools list paginated test")
 		}
 
 	@OptIn(ExperimentalCoroutinesApi::class)
@@ -120,7 +154,7 @@ class ToolsTest {
 			advanceUntilIdle()
 			log.clear()
 
-			// Now call the 'greet' tool
+			// Call the 'greet' tool
 			val response = client.sendRequest { id ->
 				CallToolRequest(
 					id = id,
@@ -142,7 +176,6 @@ class ToolsTest {
 					"""{"jsonrpc":"2.0","id":"2","result":{"content":[{"type":"text","text":"Hello, Alice, you are 25 years old!"}]}}""",
 				)
 			}
-
 			assertLinesMatch(expected, log, "tools call greet test")
 
 			// Optionally, verify the actual response

@@ -19,6 +19,7 @@ import sh.ondr.kmcp.schema.prompts.GetPromptRequest
 import sh.ondr.kmcp.schema.prompts.GetPromptRequest.GetPromptParams
 import sh.ondr.kmcp.schema.prompts.GetPromptResult
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest
+import sh.ondr.kmcp.schema.prompts.Prompt
 import sh.ondr.kmcp.server
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -34,6 +35,30 @@ fun codeReviewPrompt(code: String) =
 		user { "Please review the code: $code" }
 	}
 
+@McpPrompt
+fun secondPrompt(code: String) =
+	buildPrompt("The code review prompt") {
+		user { "Please review the code: $code" }
+	}
+
+@McpPrompt
+fun thirdPrompt(code: String) =
+	buildPrompt("The code review prompt") {
+		user { "Please review the code: $code" }
+	}
+
+@McpPrompt
+fun fourthPrompt(code: String) =
+	buildPrompt("The code review prompt") {
+		user { "Please review the code: $code" }
+	}
+
+@McpPrompt
+fun fifthPrompt(code: String) =
+	buildPrompt("The code review prompt") {
+		user { "Please review the code: $code" }
+	}
+
 class PromptsTest {
 	@OptIn(ExperimentalCoroutinesApi::class)
 	@Test
@@ -45,7 +70,12 @@ class PromptsTest {
 			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
+				.withPageSize(2)
 				.withPrompt(::codeReviewPrompt)
+				.withPrompt(::secondPrompt)
+				.withPrompt(::thirdPrompt)
+				.withPrompt(::fourthPrompt)
+				.withPrompt(::fifthPrompt)
 				.withTransport(serverTransport)
 				.withLogger { line -> log.server(line) }
 				.build()
@@ -65,17 +95,51 @@ class PromptsTest {
 			log.clear()
 
 			// Send the prompts/list request
-			val response = client.sendRequest { id -> ListPromptsRequest(id = id) }
+			var cursor: String? = null
+			val allPrompts = mutableListOf<Prompt>()
+			var pageCount = 0
+
+			client.fetchPagesAsFlow(ListPromptsRequest)
+				.collect { prompts ->
+					pageCount++
+					allPrompts += prompts
+				}
+
 			advanceUntilIdle()
 
+			// 6) We have 5 total prompts and a page size of 2 => 3 pages (2 + 2 + 1).
+			assertEquals(3, pageCount, "Expected exactly 3 pages for 5 prompts with pageSize=2")
+			assertEquals(5, allPrompts.size, "Should have exactly 5 prompts in total")
+
 			val expected = logLines {
+				// 1st page
 				clientOutgoing("""{"method":"prompts/list","jsonrpc":"2.0","id":"2"}""")
 				serverIncoming("""{"method":"prompts/list","jsonrpc":"2.0","id":"2"}""")
 				serverOutgoing(
-					"""{"jsonrpc":"2.0","id":"2","result":{"prompts":[{"name":"codeReviewPrompt","description":"This function prompts the user to review some code","arguments":[{"name":"code","description":"The code to review","required":true}]}]}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"prompts":[{"name":"codeReviewPrompt","description":"This function prompts the user to review some code","arguments":[{"name":"code","description":"The code to review","required":true}]},{"name":"secondPrompt","arguments":[{"name":"code","required":true}]}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
 				)
 				clientIncoming(
-					"""{"jsonrpc":"2.0","id":"2","result":{"prompts":[{"name":"codeReviewPrompt","description":"This function prompts the user to review some code","arguments":[{"name":"code","description":"The code to review","required":true}]}]}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"prompts":[{"name":"codeReviewPrompt","description":"This function prompts the user to review some code","arguments":[{"name":"code","description":"The code to review","required":true}]},{"name":"secondPrompt","arguments":[{"name":"code","required":true}]}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
+				)
+
+				// 2nd page
+				clientOutgoing("""{"method":"prompts/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
+				serverIncoming("""{"method":"prompts/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"3","result":{"prompts":[{"name":"thirdPrompt","arguments":[{"name":"code","required":true}]},{"name":"fourthPrompt","arguments":[{"name":"code","required":true}]}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6Mn0="}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"3","result":{"prompts":[{"name":"thirdPrompt","arguments":[{"name":"code","required":true}]},{"name":"fourthPrompt","arguments":[{"name":"code","required":true}]}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6Mn0="}}""",
+				)
+
+				// 3rd page
+				clientOutgoing("""{"method":"prompts/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6Mn0="}}""")
+				serverIncoming("""{"method":"prompts/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6Mn0="}}""")
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"4","result":{"prompts":[{"name":"fifthPrompt","arguments":[{"name":"code","required":true}]}]}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"4","result":{"prompts":[{"name":"fifthPrompt","arguments":[{"name":"code","required":true}]}]}}""",
 				)
 			}
 
