@@ -3,6 +3,7 @@ package sh.ondr.kmcp.schema.sampling
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import sh.ondr.kmcp.runtime.core.ClientApprovable
 import sh.ondr.kmcp.schema.core.JsonRpcRequest
 
 @Serializable
@@ -23,5 +24,5 @@ data class CreateMessageRequest(
 		val stopSequences: List<String>? = null,
 		val metadata: Map<String, JsonElement>? = null,
 		val _meta: Map<String, JsonElement>? = null,
-	)
+	) : ClientApprovable
 }

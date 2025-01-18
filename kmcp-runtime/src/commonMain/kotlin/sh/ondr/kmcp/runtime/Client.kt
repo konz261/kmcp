@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.InternalSerializationApi
+import sh.ondr.kmcp.runtime.core.ClientApprovable
 import sh.ondr.kmcp.runtime.core.MCP_VERSION
 import sh.ondr.kmcp.runtime.core.pagination.PaginatedEndpoint
 import sh.ondr.kmcp.runtime.serialization.deserializeResult
@@ -44,6 +45,7 @@ import kotlin.coroutines.CoroutineContext
  * ```
  */
 class Client private constructor(
+	private val permissionCallback: suspend (ClientApprovable) -> Boolean,
 	private val transport: Transport,
 	private val clientName: String,
 	private val clientVersion: String,
@@ -161,6 +163,7 @@ class Client private constructor(
 	 */
 	class Builder {
 		private var builderTransport: Transport? = null
+		private var builderPermissionCallback: suspend (ClientApprovable) -> Boolean = { true }
 		private var builderClientName: String = "TestClient"
 		private var builderClientVersion: String = "1.0.0"
 		private var builderCapabilities: ClientCapabilities = ClientCapabilities()
@@ -215,6 +218,15 @@ class Client private constructor(
 				builderDispatcher = dispatcher
 			}
 
+
+		/**
+		 * Callback that should ask the user for permission to approve the given [ClientApprovable].
+		 * The callback should return `true` if the user approves the request, `false` otherwise.
+		 */
+		fun withPermissionCallback(callback: suspend (ClientApprovable) -> Boolean) =
+			apply {
+				builderPermissionCallback = callback
+			}
 		/**
 		 * Builds the [Client] instance.
 		 * @throws IllegalStateException if transport was not set
@@ -227,6 +239,7 @@ class Client private constructor(
 			val t = builderTransport ?: error("Transport must be set via withTransport before building.")
 
 			return Client(
+				permissionCallback = builderPermissionCallback,
 				transport = t,
 				clientName = builderClientName,
 				clientVersion = builderClientVersion,
