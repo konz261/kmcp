@@ -1,6 +1,5 @@
 package sh.ondr.kmcp.runtime
 
-import CreateMessageResult
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -78,6 +77,7 @@ import sh.ondr.kmcp.schema.roots.ListRootsResult
 import sh.ondr.kmcp.schema.roots.RootsListChangedNotification
 import sh.ondr.kmcp.schema.sampling.CreateMessageRequest
 import sh.ondr.kmcp.schema.sampling.CreateMessageRequest.CreateMessageParams
+import sh.ondr.kmcp.schema.sampling.CreateMessageResult
 import sh.ondr.kmcp.schema.tools.CallToolRequest
 import sh.ondr.kmcp.schema.tools.CallToolRequest.CallToolParams
 import sh.ondr.kmcp.schema.tools.CallToolResult

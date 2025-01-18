@@ -1,3 +1,5 @@
+package sh.ondr.kmcp.schema.sampling
+
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import sh.ondr.kmcp.schema.content.SamplingContent
