@@ -9,6 +9,7 @@ import kotlinx.serialization.InternalSerializationApi
 import sh.ondr.kmcp.runtime.core.ClientApprovable
 import sh.ondr.kmcp.runtime.core.MCP_VERSION
 import sh.ondr.kmcp.runtime.core.pagination.PaginatedEndpoint
+import sh.ondr.kmcp.runtime.sampling.SamplingProvider
 import sh.ondr.kmcp.runtime.serialization.deserializeResult
 import sh.ondr.kmcp.runtime.transport.Transport
 import sh.ondr.kmcp.schema.capabilities.ClientCapabilities
@@ -22,6 +23,8 @@ import sh.ondr.kmcp.schema.core.PaginatedResult
 import sh.ondr.kmcp.schema.prompts.ListPromptsRequest
 import sh.ondr.kmcp.schema.resources.ListResourceTemplatesRequest
 import sh.ondr.kmcp.schema.resources.ListResourcesRequest
+import sh.ondr.kmcp.schema.sampling.CreateMessageRequest.CreateMessageParams
+import sh.ondr.kmcp.schema.sampling.CreateMessageResult
 import sh.ondr.kmcp.schema.tools.ListToolsRequest
 import kotlin.coroutines.CoroutineContext
 
@@ -45,12 +48,13 @@ import kotlin.coroutines.CoroutineContext
  * ```
  */
 class Client private constructor(
-	private val permissionCallback: suspend (ClientApprovable) -> Boolean,
-	private val transport: Transport,
+	private val clientCapabilities: ClientCapabilities,
 	private val clientName: String,
 	private val clientVersion: String,
-	private val clientCapabilities: ClientCapabilities,
 	private val logger: suspend (String) -> Unit,
+	private val permissionCallback: suspend (ClientApprovable) -> Boolean,
+	private val samplingProvider: SamplingProvider? = null,
+	private val transport: Transport,
 	coroutineContext: CoroutineContext,
 ) : McpComponent(
 		transport = transport,
@@ -145,6 +149,22 @@ class Client private constructor(
 			} while (cursor != null)
 		}
 
+	override suspend fun handleCreateMessageRequest(params: CreateMessageParams): CreateMessageResult {
+		val approved = permissionCallback(params)
+		if (!approved) {
+			throw RuntimeException("User rejected sampling request")
+		}
+
+		if (samplingProvider == null) {
+			throw IllegalStateException("Sampling not supported")
+		}
+
+		samplingProvider.createMessage(params).let { result ->
+			// TODO: Handle logging, etc.
+			return result
+		}
+	}
+
 	/**
 	 * Builder for creating a [Client] instance.
 	 *
@@ -162,22 +182,23 @@ class Client private constructor(
 	 * ```
 	 */
 	class Builder {
-		private var builderTransport: Transport? = null
+		private var builderCapabilities: ClientCapabilities = ClientCapabilities()
 		private var builderPermissionCallback: suspend (ClientApprovable) -> Boolean = { true }
 		private var builderClientName: String = "TestClient"
 		private var builderClientVersion: String = "1.0.0"
-		private var builderCapabilities: ClientCapabilities = ClientCapabilities()
-		private var builderLogger: suspend (String) -> Unit = {}
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
+		private var builderLogger: suspend (String) -> Unit = {}
+		private var builderSamplingProvider: SamplingProvider? = null
+		private var builderTransport: Transport? = null
 		private var used = false
 
 		/**
-		 * Sets the [Transport] used by this client.
-		 * This is mandatory and must be called before [build].
+		 * Sets the client's capabilities to be advertised during initialization.
+		 * Defaults to an empty [ClientCapabilities] if not set.
 		 */
-		fun withTransport(transport: Transport) =
+		fun withCapabilities(capabilities: ClientCapabilities) =
 			apply {
-				builderTransport = transport
+				builderCapabilities = capabilities
 			}
 
 		/**
@@ -193,12 +214,12 @@ class Client private constructor(
 		}
 
 		/**
-		 * Sets the client's capabilities to be advertised during initialization.
-		 * Defaults to an empty [ClientCapabilities] if not set.
+		 * Sets a coroutine dispatcher or context for the client's internal coroutines.
+		 * Defaults to [Dispatchers.Default].
 		 */
-		fun withCapabilities(capabilities: ClientCapabilities) =
+		fun withDispatcher(dispatcher: CoroutineContext) =
 			apply {
-				builderCapabilities = capabilities
+				builderDispatcher = dispatcher
 			}
 
 		/**
@@ -210,16 +231,6 @@ class Client private constructor(
 			}
 
 		/**
-		 * Sets a coroutine dispatcher or context for the client's internal coroutines.
-		 * Defaults to [Dispatchers.Default].
-		 */
-		fun withDispatcher(dispatcher: CoroutineContext) =
-			apply {
-				builderDispatcher = dispatcher
-			}
-
-
-		/**
 		 * Callback that should ask the user for permission to approve the given [ClientApprovable].
 		 * The callback should return `true` if the user approves the request, `false` otherwise.
 		 */
@@ -227,6 +238,26 @@ class Client private constructor(
 			apply {
 				builderPermissionCallback = callback
 			}
+
+		/**
+		 * Adds a [SamplingProvider] to the client's capabilities.
+		 */
+		fun withSamplingProvider(provider: SamplingProvider) =
+			apply {
+				builderCapabilities = builderCapabilities.copy(sampling = mapOf())
+				require(builderSamplingProvider == null) { "Sampling provider already set" }
+				builderSamplingProvider = provider
+			}
+
+		/**
+		 * Sets the [Transport] used by this client.
+		 * This is mandatory and must be called before [build].
+		 */
+		fun withTransport(transport: Transport) =
+			apply {
+				builderTransport = transport
+			}
+
 		/**
 		 * Builds the [Client] instance.
 		 * @throws IllegalStateException if transport was not set
@@ -239,13 +270,14 @@ class Client private constructor(
 			val t = builderTransport ?: error("Transport must be set via withTransport before building.")
 
 			return Client(
-				permissionCallback = builderPermissionCallback,
-				transport = t,
+				clientCapabilities = builderCapabilities,
 				clientName = builderClientName,
 				clientVersion = builderClientVersion,
-				clientCapabilities = builderCapabilities,
-				logger = builderLogger,
 				coroutineContext = builderDispatcher,
+				logger = builderLogger,
+				permissionCallback = builderPermissionCallback,
+				samplingProvider = builderSamplingProvider,
+				transport = t,
 			)
 		}
 	}

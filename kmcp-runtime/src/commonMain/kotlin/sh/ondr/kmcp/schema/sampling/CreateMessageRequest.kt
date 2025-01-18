@@ -12,13 +12,12 @@ data class CreateMessageRequest(
 	override val id: String,
 	val params: CreateMessageParams,
 ) : JsonRpcRequest() {
-	// includeContext = "allServers" | "none" | "thisServer"
 	@Serializable
 	data class CreateMessageParams(
 		val messages: List<SamplingMessage>,
 		val modelPreferences: ModelPreferences? = null,
 		val systemPrompt: String? = null,
-		val includeContext: String? = null,
+		val includeContext: IncludeContext? = null,
 		val temperature: Double? = null,
 		val maxTokens: Int,
 		val stopSequences: List<String>? = null,
