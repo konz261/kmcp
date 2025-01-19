@@ -4,6 +4,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
 import sh.ondr.kmcp.assertLinesMatch
 import sh.ondr.kmcp.client
@@ -21,19 +22,29 @@ import sh.ondr.kmcp.schema.tools.CallToolResult
 import sh.ondr.kmcp.schema.tools.ListToolsRequest
 import sh.ondr.kmcp.schema.tools.Tool
 import sh.ondr.kmcp.server
+import sh.ondr.koja.JsonSchema
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 /**
- * Sends an email to [recipients] with the given [title] and [body].
+ * @param title The email's title
+ * @param body The email's body
+ */
+@Serializable @JsonSchema
+data class Email(
+	val title: String,
+	val body: String?,
+)
+
+/**
+ * Sends an email to [recipients] with the given [email]
  */
 @McpTool
 fun sendEmail(
 	recipients: List<String>,
-	title: String,
-	body: String?,
-) = "Sending email to $recipients with title '$title' and body '$body'".toTextContent()
+	email: Email,
+) = "Sending email to $recipients with title '${email.title}' and body '${email.body}'".toTextContent()
 
 /**
  * Greets a user by [name], optionally specifying an [age].
@@ -105,10 +116,10 @@ class ToolsTest {
 				clientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
 				serverIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
 				serverOutgoing(
-					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"Greets a user by [name], optionally specifying an [age].","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","description":"Sends an email to [recipients] with the given [title] and [body].","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"Greets a user by [name], optionally specifying an [age].","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","description":"Sends an email to [recipients] with the given [email]","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"email":{"type":"object","description":"null","properties":{"title":{"type":"string","description":"The email's title"},"body":{"type":"string","description":"The email's body"}},"required":["title"]}},"required":["recipients","email"]}}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
 				)
 				clientIncoming(
-					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"Greets a user by [name], optionally specifying an [age].","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","description":"Sends an email to [recipients] with the given [title] and [body].","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"title":{"type":"string"},"body":{"type":"string"}},"required":["recipients","title"]}}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
+					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"Greets a user by [name], optionally specifying an [age].","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","description":"Sends an email to [recipients] with the given [email]","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"email":{"type":"object","description":"null","properties":{"title":{"type":"string","description":"The email's title"},"body":{"type":"string","description":"The email's body"}},"required":["title"]}},"required":["recipients","email"]}}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
 				)
 
 				// 2nd page
