@@ -3,12 +3,23 @@ package sh.ondr.kmcp.compiler
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlock
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irGetObject
+import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
+import org.jetbrains.kotlin.ir.expressions.IrSpreadElement
+import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.constructedClass
+import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
+import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.packageFqName
 import org.jetbrains.kotlin.ir.util.parentClassOrNull
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
@@ -21,9 +32,22 @@ class KmcpIrTransformer(
 	private val pluginContext: IrPluginContext,
 	private val isTest: Boolean = false,
 ) : IrElementTransformerVoid() {
-	private val pkg = "sh.ondr.kmcp"
-	val initializerFq = if (isTest) "$pkg.generated.initializer.KmcpTestInitializer" else "$pkg.generated.initializer.KmcpInitializer"
+	val initializerFq = if (isTest) {
+		"sh.ondr.kmcp.generated.initializer.KmcpTestInitializer"
+	} else {
+		"sh.ondr.kmcp.generated.initializer.KmcpInitializer"
+	}
 	private val initializerClassId = ClassId.topLevel(FqName(initializerFq))
+
+	private var currentFile: IrFile? = null
+
+	override fun visitFile(declaration: IrFile): IrFile {
+		val previousFile = currentFile
+		currentFile = declaration
+		declaration.transformChildrenVoid()
+		currentFile = previousFile
+		return declaration
+	}
 
 	override fun visitConstructorCall(expression: IrConstructorCall): IrExpression {
 		expression.transformChildrenVoid()
@@ -50,5 +74,107 @@ class KmcpIrTransformer(
 		}
 
 		return expression
+	}
+
+	override fun visitFunction(declaration: IrFunction): IrStatement {
+		val currentIsWithToolsOrPrompts = declaration.kotlinFqName.asString() in listOf(
+			"sh.ondr.kmcp.runtime.Server.Builder.withTools",
+			"sh.ondr.kmcp.runtime.Server.Builder.withPrompts",
+		)
+		// Skip withTools/withPrompts declaration, otherwise an error is thrown when
+		// calling withTool/withPrompt from inside withTools/withPrompts
+		if (currentIsWithToolsOrPrompts) {
+			return declaration
+		}
+		return super.visitFunction(declaration)
+	}
+
+	override fun visitCall(expression: IrCall): IrExpression {
+		expression.transformChildrenVoid()
+
+		val callee = expression.symbol.owner
+		val fqName = callee.fqNameWhenAvailable?.asString() ?: return expression
+
+		val (inServerBuilder, functionName) = fqName.split(".").let {
+			val inServerBuilder = it.dropLast(1).joinToString(".") == "sh.ondr.kmcp.runtime.Server.Builder"
+			inServerBuilder to it.last()
+		}
+
+		// If not in Server.Builder, or the functionName isn't one we care about, bail out
+		if (!inServerBuilder || functionName !in listOf("withTool", "withTools", "withPrompt", "withPrompts")) {
+			return expression
+		}
+
+		// Otherwise, enforce direct references
+		enforceDirectReferences(expression, functionName)
+		return expression
+	}
+
+	/*
+	 * Enforce that arguments to [functionName] are direct references (IrFunctionReference).
+	 *
+	 * - For withTool/withPrompt, there's a single argument that's a function reference.
+	 * - For withTools/withPrompts, there's a single vararg argument containing multiple references.
+	 */
+	private fun enforceDirectReferences(
+		call: IrCall,
+		functionName: String,
+	) {
+		val valueArguments = (0 until call.valueArgumentsCount).mapNotNull { idx -> call.getValueArgument(idx) }
+
+		valueArguments.forEach { arg ->
+			when (arg) {
+				// For withTools/withPrompts => 1 vararg
+				is IrVararg -> {
+					arg.elements.forEach { varargElem ->
+						when (varargElem) {
+							// Disallow spread element
+							is IrSpreadElement -> {
+								messageCollector.report(
+									CompilerMessageSeverity.ERROR,
+									"kMCP: Spread operator not allowed for $functionName if direct references are required.",
+									call.getMessageLocation(),
+								)
+							}
+							// Each element in the vararg should be an IrExpression of type IrFunctionReference
+							is IrExpression -> checkIsFunctionRef(varargElem, functionName)
+							// Should never happen
+							else -> error("kMCP: Unexpected vararg element type: ${varargElem::class.java}")
+						}
+					}
+				}
+
+				// For withTool/withPrompt  => 1 direct argument
+				else -> checkIsFunctionRef(arg, functionName)
+			}
+		}
+	}
+
+	private fun checkIsFunctionRef(
+		expr: IrExpression,
+		functionName: String,
+	) {
+		if (expr !is IrFunctionReference) {
+			messageCollector.report(
+				CompilerMessageSeverity.ERROR,
+				"kMCP: Only direct function references (like ::myFunction) are allowed for $functionName",
+				expr.getMessageLocation(),
+			)
+		}
+	}
+
+	fun IrExpression.getMessageLocation(): CompilerMessageLocation? {
+		if (currentFile == null) return null
+		val fileEntry = currentFile!!.fileEntry
+		val (line, col) = fileEntry.getLineAndColumnNumbers(startOffset)
+
+		// line, col are 0-based, so +1 to get 1-based display
+		val location = CompilerMessageLocation.create(
+			fileEntry.name,
+			line + 1,
+			col + 1,
+			null,
+		)
+		return location
 	}
 }

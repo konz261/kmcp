@@ -71,11 +71,13 @@ class PromptsTest {
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withPageSize(2)
-				.withPrompt(::codeReviewPrompt)
-				.withPrompt(::secondPrompt)
-				.withPrompt(::thirdPrompt)
-				.withPrompt(::fourthPrompt)
-				.withPrompt(::fifthPrompt)
+				.withPrompts(
+					::codeReviewPrompt,
+					::secondPrompt,
+					::thirdPrompt,
+					::fourthPrompt,
+					::fifthPrompt,
+				)
 				.withTransport(serverTransport)
 				.withLogger { line -> log.server(line) }
 				.build()

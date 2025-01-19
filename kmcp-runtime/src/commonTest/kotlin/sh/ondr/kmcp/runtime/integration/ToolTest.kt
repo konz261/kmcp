@@ -76,9 +76,11 @@ class ToolsTest {
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withPageSize(2)
-				.withTool(::greet)
-				.withTool(::sendEmail)
-				.withTool(::reverseString)
+				.withTools(
+					::greet,
+					::sendEmail,
+					::reverseString,
+				)
 				.withTransport(serverTransport)
 				.withLogger { line -> log.server(line) }
 				.build()
