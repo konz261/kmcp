@@ -8,10 +8,12 @@ import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import sh.ondr.kmcp.ksp.prompts.PromptMeta
+import sh.ondr.kmcp.ksp.prompts.checkPromptFunctions
 import sh.ondr.kmcp.ksp.prompts.generatePromptHandlersFile
 import sh.ondr.kmcp.ksp.prompts.generatePromptParamsClass
 import sh.ondr.kmcp.ksp.prompts.toPromptMeta
 import sh.ondr.kmcp.ksp.tools.ToolMeta
+import sh.ondr.kmcp.ksp.tools.checkToolFunctions
 import sh.ondr.kmcp.ksp.tools.generateToolHandlersFile
 import sh.ondr.kmcp.ksp.tools.generateToolParamsClass
 import sh.ondr.kmcp.ksp.tools.toToolMeta
@@ -103,7 +105,16 @@ class KmcpProcessor(
 				logger.error("KMCP Error: aborting code generation due to errors in @McpTool-annotated functions.")
 				return
 			}
-			generateInitializer()
 		}
+		
+		if (prompts.isNotEmpty()) {
+			val promptErrorsFound = checkPromptFunctions(prompts)
+			if (promptErrorsFound) {
+				logger.error("KMCP Error: aborting code generation due to errors in @McpPrompt-annotated functions.")
+				return
+			}
+		}
+
+		generateInitializer()
 	}
 }

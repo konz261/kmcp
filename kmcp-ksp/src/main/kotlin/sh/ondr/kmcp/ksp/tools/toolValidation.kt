@@ -1,4 +1,4 @@
-package sh.ondr.kmcp.ksp
+package sh.ondr.kmcp.ksp.tools
 
 import com.google.devtools.ksp.getVisibility
 import com.google.devtools.ksp.symbol.ClassKind
@@ -6,7 +6,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Visibility
-import sh.ondr.kmcp.ksp.tools.ToolMeta
+import sh.ondr.kmcp.ksp.KmcpProcessor
 import kotlin.collections.filter
 
 // TODO clean up this mess
