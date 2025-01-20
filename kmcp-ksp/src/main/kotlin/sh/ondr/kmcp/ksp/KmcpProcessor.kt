@@ -58,12 +58,21 @@ class KmcpProcessor(
 			.map { it.toToolMeta() }
 			.toList()
 
-		// Validate that tool names are unique
-		val currentDuplicated = currentRoundTools.groupBy { it.functionName }.any { it.value.size > 1 }
-		val globalDuplicated = tools.map { it.functionName }.intersect(currentRoundTools.map { it.functionName }).isNotEmpty()
-		if (currentDuplicated || globalDuplicated) {
-			// TODO reference specific duplications
-			logger.error("@McpTool function names must be unique")
+		val newAndExistingTools = tools + currentRoundTools
+		val duplicates = newAndExistingTools
+			.groupBy { it.functionName }
+			.filterValues { it.size > 1 }
+
+		if (duplicates.isNotEmpty()) {
+			duplicates.forEach { (funcName, dupeList) ->
+				dupeList.forEach { tool ->
+					logger.error(
+						"KMCP error: multiple @McpTool functions share the name '$funcName'. " +
+							"Conflicts: ${dupeList.joinToString { it.fqName }}",
+						symbol = tool.ksFunction,
+					)
+				}
+			}
 			return
 		}
 
@@ -80,12 +89,21 @@ class KmcpProcessor(
 			.map { it.toPromptMeta() }
 			.toList()
 
-		// Validate that tool names are unique
-		val currentDuplicated = currentRoundPrompts.groupBy { it.functionName }.any { it.value.size > 1 }
-		val globalDuplicated = prompts.map { it.functionName }.intersect(currentRoundPrompts.map { it.functionName }).isNotEmpty()
-		if (currentDuplicated || globalDuplicated) {
-			// TODO reference specific duplications
-			logger.error("@McpPrompt function names must be unique")
+		val newAndExistingPrompts = prompts + currentRoundPrompts
+		val duplicates = newAndExistingPrompts
+			.groupBy { it.functionName }
+			.filterValues { it.size > 1 }
+
+		if (duplicates.isNotEmpty()) {
+			duplicates.forEach { (funcName, dupeList) ->
+				dupeList.forEach { prompt ->
+					logger.error(
+						"KMCP error: multiple @McpPrompt functions share the name '$funcName'. " +
+							"Conflicts: ${dupeList.joinToString { it.fqName }}",
+						symbol = prompt.ksFunction,
+					)
+				}
+			}
 			return
 		}
 
