@@ -1,0 +1,12 @@
+package sh.ondr.mcp4k.generated
+
+import sh.ondr.mcp4k.runtime.MCP4K
+
+object Mcp4kGeneratedToolRegistryInitializer {
+    init {
+        MCP4K.toolInfos["greetUser"] = ToolInfo(...)
+        MCP4K.toolHandlers["greetUser"] = ToolHandler(...)
+        MCP4K.toolInfos["myTool"] = ToolInfo(...)
+        MCP4K.toolHandlers["myTool"] = ToolHandler(...)
+    }
+}

@@ -10,5 +10,5 @@ ktlint_standard_value-parameter-comment=disabled
 ktlint_standard_multiline-expression-wrapping=disabled
 ktlint_standard_string-template-indent=disabled
 
-[{kmcp-runtime/src/commonMain/kotlin/sh/ondr/kmcp/schema/core/Result.kt,kmcp-runtime/src/commonMain/kotlin/sh/ondr/kmcp/schema/core/JsonRpcNotification.kt}]
+[{mcp4k-runtime/src/commonMain/kotlin/sh/ondr/mcp4k/schema/core/Result.kt,mcp4k-runtime/src/commonMain/kotlin/sh/ondr/mcp4k/schema/core/JsonRpcNotification.kt}]
 ktlint_standard_property-naming=disabled

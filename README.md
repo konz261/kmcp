@@ -1,14 +1,12 @@
 
 <p align="center">
-  <img src="./kmcp.svg" alt="KMCP banner">
+  <img src="./mcp4k.svg" alt="mcp4k banner">
 </p>
 
 
-<h1 align="center">KMCP - Kotlin Multiplatform MCP framework</h1>
-
 <p align="center">
-  <a href="https://search.maven.org/artifact/sh.ondr.kmcp/kmcp-runtime-jvm/0.1.0/jar">
-    <img src="https://img.shields.io/maven-central/v/sh.ondr.kmcp/kmcp-runtime-jvm.svg?label=Maven%20Central&color=blue" alt="Maven Central"/>
+  <a href="https://search.maven.org/artifact/sh.ondr.mcp4k/mcp4k-runtime-jvm/0.1.0/jar">
+    <img src="https://img.shields.io/maven-central/v/sh.ondr.mcp4k/mcp4k-runtime-jvm.svg?label=Maven%20Central&color=blue" alt="Maven Central"/>
   </a>
   <a href="https://www.apache.org/licenses/LICENSE-2.0">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg?color=blue" alt="License"/>
@@ -16,9 +14,9 @@
 </p>
 
 
-KMCP is a compiler-driven [Model Context Protocol](https://modelcontextprotocol.io) framework that lets you build MCP apps for Kotlin Multiplatform targets (native, JVM, Android, iOS and JS). It automatically generates the runtime glue and schemas that LLMs need to interact with your code.
+mcp4k is a compiler-driven [Model Context Protocol](https://modelcontextprotocol.io) framework for Kotlin Multiplatform. It automatically generates the runtime glue and schemas that LLMs need to interact with your code.
 
-Tools and prompts are functions - simply add annotations and let KMCP handle all the boiler-plate:
+Tools and prompts are functions - simply add annotations and let mcp4k handle all the boiler-plate:
 
 ```kotlin
 @McpTool
@@ -48,14 +46,14 @@ The `greet` tool will now be exposed over MCP.
 
 <br>
 
- **KMCP is in early-development. This API will change significantly..**
+ **mcp4k is in early-development. This API will change significantly..**
 
 
 # Installation
 
 ```
 plugins {
-  id("sh.ondr.kmcp") version "0.2.1"
+  id("sh.ondr.mcp4k") version "0.2.1"
 }
 ```
 
@@ -64,7 +62,7 @@ plugins {
 
 ## Tools
 
-KMCP supports `@McpTool` functions with various argument types, including
+mcp4k supports `@McpTool` functions with various argument types, including
   * Primitives
   * Strings
   * Lists
@@ -138,7 +136,7 @@ When clients call `tools/list`, they see a JSON schema describing the tool's inp
 }
 ```
 
-Clients can now send a `tools/call` request with a JSON object describing the above schema. Invocation and type-safe deserialization will be handled by KMCP.
+Clients can now send a `tools/call` request with a JSON object describing the above schema. Invocation and type-safe deserialization will be handled by mcp4k.
 
 <br>
 
@@ -342,10 +340,10 @@ to trigger the notification in case a client is subscribed to this resource.
 
 <br>
 
-## How KMCP Works
+## How mcp4k Works
 
 - Annotated `@McpTool` and `@McpPrompt` functions are processed at compile time.
-- KMCP generates schemas, handlers, and registrations automatically.
+- mcp4k generates schemas, handlers, and registrations automatically.
 - Generated code is injected during the IR phase.
 - If you mess something up, you (hopefully) get a compile-time error.
 

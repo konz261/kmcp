@@ -11,14 +11,14 @@ dependencyResolutionManagement {
 	}
 }
 
-rootProject.name = "kmcp"
-include("kmcp-compiler")
-include("kmcp-gradle")
-include("kmcp-ksp")
-include("kmcp-runtime")
+rootProject.name = "mcp4k"
+include("mcp4k-compiler")
+include("mcp4k-gradle")
+include("mcp4k-ksp")
+include("mcp4k-runtime")
 
-includeBuild("kmcp-build") {
+includeBuild("mcp4k-build") {
 	dependencySubstitution {
-		substitute(module("sh.ondr.kmcp:kmcp-gradle")).using(project(":gradle-plugin"))
+		substitute(module("sh.ondr.mcp4k:mcp4k-gradle")).using(project(":gradle-plugin"))
 	}
 }
