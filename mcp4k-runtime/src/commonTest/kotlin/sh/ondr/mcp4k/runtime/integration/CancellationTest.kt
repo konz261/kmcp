@@ -4,7 +4,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -22,7 +21,6 @@ import sh.ondr.mcp4k.runtime.transport.TestTransport
 import sh.ondr.mcp4k.schema.content.ToolContent
 import sh.ondr.mcp4k.schema.tools.CallToolRequest
 import sh.ondr.mcp4k.server
-import kotlin.coroutines.coroutineContext
 import kotlin.test.Test
 import kotlin.test.fail
 
@@ -34,9 +32,6 @@ import kotlin.test.fail
 suspend fun slowToolOperation(iterations: Int = 10): ToolContent {
 	for (i in 1..iterations) {
 		delay(300)
-		if (!coroutineContext.isActive) {
-			return "Operation was canceled after $i iteration(s)".toTextContent()
-		}
 	}
 	return "Operation completed successfully after $iterations iterations".toTextContent()
 }

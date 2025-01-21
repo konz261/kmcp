@@ -25,7 +25,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-class McpInitializationTest {
+class InitializationTest {
 	@Test
 	fun testInitHandshakeExact() =
 		runTest {
