@@ -44,7 +44,7 @@ The `greet` tool will now be exposed over MCP.
 
 <br>
 
- **mcp4k is in early-development. This API will change significantly..**
+**mcp4k is in early-development. This API will change significantly..**
 
 
 # Installation
@@ -66,12 +66,12 @@ plugins {
 ## Tools
 
 mcp4k supports `@McpTool` functions with various argument types, including
-  * Primitives
-  * Strings
-  * Lists
-  * Maps
-  * Enums
-  * @JsonSchema classes
+* Primitives
+* Strings
+* Lists
+* Maps
+* Enums
+* @JsonSchema classes
 
 KDoc parameter descriptions are type-safe and will throw a compile-time error if you specify a non-existing property.
 
@@ -187,7 +187,7 @@ Resources are provided by a `ResourceProvider`. You can either create your own `
   - Handles `resources/read` requests by reading contents from disk via `okio`.
   - Sends `notifications/resources/list_changed` when files are added or removed.
   - Supports subscriptions (but changes to files have to be marked manually for now).
-    
+
 - `TemplateFileProvider`
   - Exposes a given `rootDir` through a URI template.
   - Handles `resources/templates/list`.
@@ -261,7 +261,7 @@ A client sending a `resources/read` request to fetch the contents of the source 
 }
 ```
 
-You can also add files at runtime via
+You can also add or remove files at runtime via
 ```kotlin
 fileProvider.addFile(
   File(
@@ -269,9 +269,7 @@ fileProvider.addFile(
     mimeType = "text/plain",
   )
 )
-```
-or remove files by specifying the relative path:
-```kotlin
+
 fileProvider.removeFile("cpp/my_program.h")
 ```
 
@@ -344,13 +342,101 @@ to trigger the notification in case a client is subscribed to this resource.
 
 <br>
 
+## Sampling
+
+Clients can fulfill server-initiated LLM requests by providing a `SamplingProvider`.
+
+In a real application, you would call your favorite LLM API (e.g., OpenAI, Anthropic) inside the provider. Here’s a simplified example that always returns a dummy completion:
+
+```kotlin
+// 1) Define a sampling provider
+val samplingProvider = SamplingProvider { params: CreateMessageParams ->
+  CreateMessageResult(
+    model = "dummy-model",
+    role = Role.ASSISTANT,
+    content = TextContent("Dummy completion result"),
+    stopReason = "endTurn",
+  )
+}
+
+// 2) Build the client with sampling support
+val client = Client.Builder()
+  .withTransport(StdioTransport())
+  .withPermissionCallback { userApprovable -> 
+    // Prompt the user for confirmation here
+    true 
+  }
+  .withSamplingProvider(samplingProvider) // Register the provider
+  .build()
+
+runBlocking {
+  client.start()
+  client.initialize()
+
+  // Now, if a server sends a "sampling/createMessage" request, 
+  // the samplingProvider will be invoked to generate a response.
+}
+```
+
+<br>
+
+## Request Cancellations
+
+mcp4k uses Kotlin coroutines for cooperative cancellation. For example, suppose you have a long-running tool operation on the server:
+
+```kotlin
+@McpTool
+suspend fun slowToolOperation(iterations: Int = 10): ToolContent {
+  for (i in 1..iterations) {
+    delay(1000)
+  }
+  return "Operation completed successfully after $iterations iterations".toTextContent()
+}
+```
+
+From the client side, after you invoked the tool, you can simply cancel the coroutine job:
+
+```kotlin
+val requestJob = launch {
+  client.sendRequest { id ->
+    CallToolRequest(
+      id = id,
+      params = CallToolRequest.CallToolParams(
+        name = "slowToolOperation",
+        arguments = mapOf("iterations" to 20),
+      ),
+    )
+  }
+}
+
+// Let the server do partial work
+delay(600)
+
+// Now cancel
+requestJob.cancel("User doesn't want to wait anymore")
+```
+
+Under the hood, mcp4k automatically sends a JSON-RPC notifications/cancelled message to the server, and your suspended tool operation will be aborted:
+```json
+{
+  "method": "notifications/cancelled",
+  "jsonrpc": "2.0",
+  "params": {
+    "requestId": "2",
+    "reason": "Client doesn't want to wait anymore"
+  }
+}
+```
+
+This gives you straightforward cancellations across the entire client-server flow.
+
 ## TODO
 ```
 ✅ Add resource capability
 ✅ Suspendable logger, @McpTool and @McpPrompt functions
 ✅ Request cancellations
 ✅ Pagination
-✅ Sampling
+✅ Sampling (client-side)
 ⬜ Completions
 ⬜ Roots
 ⬜ Support logging levels
