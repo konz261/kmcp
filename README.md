@@ -3,10 +3,9 @@
   <img src="./mcp4k.svg" alt="mcp4k banner">
 </p>
 
-
 <p align="center">
-  <a href="https://search.maven.org/artifact/sh.ondr.mcp4k/mcp4k-runtime-jvm/0.1.0/jar">
-    <img src="https://img.shields.io/maven-central/v/sh.ondr.mcp4k/mcp4k-runtime-jvm.svg?label=Maven%20Central&color=blue" alt="Maven Central"/>
+  <a href="https://central.sonatype.com/search?q=sh.ondr.mcp4k">
+    <img src="https://img.shields.io/maven-central/v/sh.ondr.mcp4k/mcp4k-gradle.svg?label=Maven%20Central&color=blue" alt="Maven Central"/>
   </a>
   <a href="https://www.apache.org/licenses/LICENSE-2.0">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg?color=blue" alt="License"/>
@@ -16,14 +15,14 @@
 
 mcp4k is a compiler-driven [Model Context Protocol](https://modelcontextprotocol.io) framework for Kotlin Multiplatform. It automatically generates the runtime glue and schemas that LLMs need to interact with your code.
 
-Tools and prompts are functions - simply add annotations and let mcp4k handle all the boiler-plate:
+Tools and prompts are just functions - simply add annotations and let mcp4k handle all the boiler-plate:
 
 ```kotlin
 @McpTool
 fun greet(name: String) = "Hello, $name!".toTextContent()
 ```
 
-Done! Now, just register the tool and start the server:
+Done! Now, register the tool and start the server:
 
 ```kotlin
 fun main() = runBlocking {
@@ -39,7 +38,6 @@ fun main() = runBlocking {
   }
 }
 ```
-
 That's it! Compile the above code and link the native binary to Claude Desktop by adding it to your `claude_desktop_config.json` file.
 
 The `greet` tool will now be exposed over MCP.
@@ -51,9 +49,14 @@ The `greet` tool will now be exposed over MCP.
 
 # Installation
 
-```
+Add the mcp4k plugin to your multiplatform (or jvm) project:
+
+```kotlin
 plugins {
-  id("sh.ondr.mcp4k") version "0.2.1"
+  kotlin("multiplatform") version "2.1.0" // or kotlin("jvm")
+  kotlin("plugin.serialization") version "2.1.0"
+  
+  id("sh.ondr.mcp4k") version "0.3.0" // <-- Add this
 }
 ```
 
@@ -68,16 +71,22 @@ mcp4k supports `@McpTool` functions with various argument types, including
   * Lists
   * Maps
   * Enums
-  * @Serializable classes
+  * @JsonSchema classes
 
+KDoc parameter descriptions are type-safe and will throw a compile-time error if you specify a non-existing property.
 
 ```kotlin
-@Serializable
+@JsonSchema @Serializable
 enum class Priority {
   LOW, NORMAL, HIGH
 }
 
-@Serializable
+/**
+ * @property title The email's title
+ * @property body The email's body
+ * @property priority The email's priority
+ */
+@JsonSchema @Serializable
 data class Email(
   val title: String,
   val body: String?,
@@ -85,56 +94,71 @@ data class Email(
 )
 
 /**
- * Sends an email to all recipients
+ * Sends an email
+ * @param recipients The email addresses of the recipients
+ * @param email The email to send
  */
 @McpTool
 fun sendEmail(
   recipients: List<String>,
   email: Email,
 ) = buildString {
-      append("Email sent to ${recipients.joinToString()} with ")
-      append("title '${email.title}' and ")
-      append("body '${email.body}' and ")
-      append("priority ${email.priority}")
+  append("Email sent to ${recipients.joinToString()} with ")
+  append("title '${email.title}' and ")
+  append("body '${email.body}' and ")
+  append("priority ${email.priority}")
 }.toTextContent()
 ```
+
 
 When clients call `tools/list`, they see a JSON schema describing the tool's input:
 
 ```json
 {
-  "name": "sendEmail",
-  "description": "Sends an email to all recipients",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "recipients": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        }
-      },
-      "email": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string"
-          },
-          "body": {
-            "type": "string"
-          },
-          "priority": {
-            "type": "string",
-            "enum": ["LOW","NORMAL","HIGH"]
-          }
-        },
-        "required": ["title"]
+  "type": "object",
+  "description": "Sends an email",
+  "properties": {
+    "recipients": {
+      "type": "array",
+      "description": "The email addresses of the recipients",
+      "items": {
+        "type": "string"
       }
     },
-    "required": ["recipients","email"]
-  }
+    "email": {
+      "type": "object",
+      "description": "The email to send",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The email's title"
+        },
+        "body": {
+          "type": "string",
+          "description": "The email's body"
+        },
+        "priority": {
+          "type": "string",
+          "description": "The email's priority",
+          "enum": [
+            "LOW",
+            "NORMAL",
+            "HIGH"
+          ]
+        }
+      },
+      "required": [
+        "title"
+      ]
+    }
+  },
+  "required": [
+    "recipients",
+    "email"
+  ]
 }
 ```
+
 
 Clients can now send a `tools/call` request with a JSON object describing the above schema. Invocation and type-safe deserialization will be handled by mcp4k.
 
@@ -142,7 +166,7 @@ Clients can now send a `tools/call` request with a JSON object describing the ab
 
 ## Prompts
 
-Just annotate functions with `@McpPrompt` and return a `GetPromptResult`. Arguments must be Strings:
+Annotate functions with `@McpPrompt` and return a `GetPromptResult`. Arguments must be Strings:
 
 ```kotlin
 @McpPrompt
@@ -170,7 +194,7 @@ Resources are provided by a `ResourceProvider`. You can either create your own `
   - Handles `resources/read` requests by reading contents from disk via `okio`.
   - Supports subscriptions (but changes to files have to be marked manually for now).
 
-⚠️ **Use those providers only in a sand-boxed environment. They are NOT production-ready.** ⚠️ 
+**Use those providers only in a sand-boxed environment. They are NOT production-ready.**
 
 ### DiscreteFileProvider
 
@@ -325,8 +349,8 @@ to trigger the notification in case a client is subscribed to this resource.
 ✅ Add resource capability
 ✅ Suspendable logger, @McpTool and @McpPrompt functions
 ✅ Request cancellations
-⬜ Pagination
-⬜ Sampling
+✅ Pagination
+✅ Sampling
 ⬜ Completions
 ⬜ Roots
 ⬜ Support logging levels
@@ -335,7 +359,7 @@ to trigger the notification in case a client is subscribed to this resource.
 ⬜ Proper MIME detection
 ⬜ Add FileWatcher to automate resources/updated nofications
 ⬜ HTTP-SSE transport
-⬜ Add references, property descriptions and validation keywords to the [JSON schema](https://github.com/ondrsh/kotlin-json-schema/tree/main)
+⬜ Add references, property descriptions and validation keywords to the JSON schemas
 ```
 
 <br>
