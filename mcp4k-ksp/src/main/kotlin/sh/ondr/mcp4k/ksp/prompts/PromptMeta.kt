@@ -15,6 +15,7 @@ data class PromptMeta(
 	val returnTypeReadable: String,
 	val originatingFile: KSFile,
 	val kdoc: String? = null,
+	val isServerExtension: Boolean,
 )
 
 fun KSFunctionDeclaration.toPromptMeta(): PromptMeta {
@@ -48,5 +49,6 @@ fun KSFunctionDeclaration.toPromptMeta(): PromptMeta {
 		returnTypeReadable = returnType.toString(),
 		originatingFile = containingFile!!,
 		kdoc = docString,
+		isServerExtension = extensionReceiver != null, // We check for type in validation
 	)
 }

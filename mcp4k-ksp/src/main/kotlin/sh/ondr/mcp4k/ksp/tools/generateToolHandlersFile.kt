@@ -25,7 +25,11 @@ fun Mcp4kProcessor.generateToolHandlersFile() {
 		appendLine("import sh.ondr.mcp4k.runtime.tools.McpToolHandler")
 		appendLine("import sh.ondr.mcp4k.runtime.error.MissingRequiredArgumentException")
 		appendLine("import sh.ondr.mcp4k.runtime.error.UnknownArgumentException")
+		appendLine("import sh.ondr.mcp4k.runtime.Server")
 		appendLine("import sh.ondr.mcp4k.schema.tools.CallToolResult")
+		tools.forEach {
+			appendLine("import ${it.fqName}")
+		}
 		appendLine()
 
 		for (tool in tools) {
@@ -39,9 +43,9 @@ fun Mcp4kProcessor.generateToolHandlersFile() {
 			val requiredParams = tool.params.filter { it.isRequired }
 
 			appendLine("class $handlerClassName : McpToolHandler {")
-			appendLine("  private val knownParams = setOf($knownParams)")
+			appendLine("  private val knownParams: Set<String> = setOf($knownParams)")
 			appendLine()
-			appendLine("  override suspend fun call(params: JsonObject): CallToolResult {")
+			appendLine("  override suspend fun call(server: Server, params: JsonObject): CallToolResult {")
 			appendLine("    val unknownKeys = params.keys - knownParams")
 			appendLine("    if (unknownKeys.isNotEmpty()) {")
 			appendLine(
@@ -83,8 +87,6 @@ private fun Mcp4kProcessor.generateInvocationCode(
 	toolMeta: ToolMeta,
 	indentLevel: Int = 2,
 ): String {
-	val fqFunctionName = toolMeta.fqName
-
 	// "branchingParams" are those that have a default => we might skip them if absent
 	val branchingParams = toolMeta.params.filter { it.hasDefault }
 
@@ -92,22 +94,30 @@ private fun Mcp4kProcessor.generateInvocationCode(
 	val alwaysParams = toolMeta.params.filter { !it.hasDefault }
 
 	return generateToolOptionalChain(
-		fqFunctionName = fqFunctionName,
+		functionName = toolMeta.functionName,
 		alwaysParams = alwaysParams,
 		defaultParams = branchingParams,
 		indentLevel = indentLevel,
+		isServerExtension = toolMeta.isServerExtension,
 	)
 }
 
 private fun Mcp4kProcessor.generateToolOptionalChain(
-	fqFunctionName: String,
+	functionName: String,
 	alwaysParams: List<ParamInfo>,
 	defaultParams: List<ParamInfo>,
 	indentLevel: Int,
+	isServerExtension: Boolean,
 ): String {
 	// Base case: if no more default-having params, just call the function with [alwaysParams].
 	if (defaultParams.isEmpty()) {
-		return callToolFunction(fqFunctionName, alwaysParams, emptyList(), indentLevel)
+		return callToolFunction(
+			functionName = functionName,
+			alwaysParams = alwaysParams,
+			optionalParams = emptyList(),
+			indentLevel = indentLevel,
+			isServerExtension = isServerExtension,
+		)
 	}
 	val firstOpt = defaultParams.first()
 	val remainingOpts = defaultParams.drop(1)
@@ -117,19 +127,21 @@ private fun Mcp4kProcessor.generateToolOptionalChain(
 		appendLine("${indent}if (params.containsKey(\"${firstOpt.name}\")) {")
 		// If present, treat it like we must pass it
 		val ifBranch = generateToolOptionalChain(
-			fqFunctionName = fqFunctionName,
+			functionName = functionName,
 			alwaysParams = alwaysParams + firstOpt,
 			defaultParams = remainingOpts,
 			indentLevel = indentLevel + 1,
+			isServerExtension = isServerExtension,
 		)
 		appendLine(ifBranch)
 		appendLine("$indent} else {")
 		// If absent, skip it so the function call uses its default
 		val elseBranch = generateToolOptionalChain(
-			fqFunctionName = fqFunctionName,
+			functionName = functionName,
 			alwaysParams = alwaysParams, // not adding firstOpt
 			defaultParams = remainingOpts,
 			indentLevel = indentLevel + 1,
+			isServerExtension = isServerExtension,
 		)
 		appendLine(elseBranch)
 		appendLine("$indent}")
@@ -137,10 +149,11 @@ private fun Mcp4kProcessor.generateToolOptionalChain(
 }
 
 private fun Mcp4kProcessor.callToolFunction(
-	fqFunctionName: String,
+	functionName: String,
 	alwaysParams: List<ParamInfo>,
 	optionalParams: List<ParamInfo>,
 	indentLevel: Int,
+	isServerExtension: Boolean,
 ): String {
 	val indent = " ".repeat(indentLevel * 2)
 	val allParams = alwaysParams + optionalParams
@@ -152,8 +165,10 @@ private fun Mcp4kProcessor.callToolFunction(
 		"${param.name} = obj.${param.name}$maybeBang"
 	}
 
+	val prefix = if (isServerExtension) "server." else ""
+
 	return buildString {
-		appendLine("$indent$fqFunctionName(")
+		appendLine("$indent$prefix$functionName(")
 		if (allParams.isNotEmpty()) {
 			appendLine("$indent  $args")
 		}

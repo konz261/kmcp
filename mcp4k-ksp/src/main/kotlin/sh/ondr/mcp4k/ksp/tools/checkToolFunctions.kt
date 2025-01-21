@@ -100,5 +100,20 @@ internal fun Mcp4kProcessor.checkToolFunctions(tools: List<ToolMeta>): Boolean {
 		}
 	}
 
+	// 6. Check extension receivers (must be null or Server)
+	tools.forEach { tool ->
+		if (tool.isServerExtension) {
+			tool.ksFunction.extensionReceiver?.resolve()?.declaration?.qualifiedName?.asString()?.let { receiverFq ->
+				if (receiverFq != "sh.ondr.mcp4k.runtime.Server") {
+					logger.error(
+						"MCP4K error: @McpTool function '${tool.functionName}' is an extension function, but the receiver type is not 'Server'. " +
+							"Please ensure the extension receiver is 'Server' or 'null'.",
+						symbol = tool.ksFunction,
+					)
+				}
+			}
+		}
+	}
+
 	return errorsFound
 }

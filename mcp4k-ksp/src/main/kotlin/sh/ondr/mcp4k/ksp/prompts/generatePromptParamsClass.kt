@@ -22,7 +22,7 @@ fun Mcp4kProcessor.generatePromptParamsClass(promptMeta: PromptMeta) {
 
 		appendLine("@Serializable")
 		appendLine("@JsonSchema")
-		appendLine("data class ${promptMeta.paramsClassName}(")
+		appendLine("class ${promptMeta.paramsClassName}(")
 
 		promptMeta.params.forEachIndexed { index, p ->
 			val comma = if (index == promptMeta.params.size - 1) "" else ","

@@ -32,7 +32,7 @@ internal fun Mcp4kProcessor.checkPromptFunctions(prompts: List<PromptMeta>): Boo
 		}
 
 	// 3. Parameter types must be String or String?
-	for (prompt in prompts) {
+	prompts.forEach { prompt ->
 		prompt.params
 			.filterNot { param ->
 				param.fqnType == "kotlin.String" || param.fqnType == "kotlin.String?"
@@ -102,6 +102,21 @@ internal fun Mcp4kProcessor.checkPromptFunctions(prompts: List<PromptMeta>): Boo
 				symbol = prompt.ksFunction,
 			)
 			errorsFound = true
+		}
+	}
+
+	// 7. Check extension receivers (must be null or Server)
+	prompts.forEach { prompt ->
+		if (prompt.isServerExtension) {
+			prompt.ksFunction.extensionReceiver?.resolve()?.declaration?.qualifiedName?.asString()?.let { receiverFq ->
+				if (receiverFq != "sh.ondr.mcp4k.runtime.Server") {
+					logger.error(
+						"MCP4K error: @McpPrompt function '${prompt.functionName}' is an extension function, but the receiver type is not 'Server'. " +
+							"Please ensure the extension receiver is 'Server' or 'null'.",
+						symbol = prompt.ksFunction,
+					)
+				}
+			}
 		}
 	}
 

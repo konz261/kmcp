@@ -23,9 +23,13 @@ fun Mcp4kProcessor.generatePromptHandlersFile() {
 		appendLine("import kotlinx.serialization.json.decodeFromJsonElement")
 		appendLine("import sh.ondr.mcp4k.runtime.core.mcpJson")
 		appendLine("import sh.ondr.mcp4k.runtime.prompts.McpPromptHandler")
+		appendLine("import sh.ondr.mcp4k.runtime.Server")
 		appendLine("import sh.ondr.mcp4k.runtime.error.MissingRequiredArgumentException")
 		appendLine("import sh.ondr.mcp4k.runtime.error.UnknownArgumentException")
 		appendLine("import sh.ondr.mcp4k.schema.prompts.GetPromptResult")
+		prompts.forEach {
+			appendLine("import ${it.fqName}")
+		}
 		appendLine()
 
 		prompts.forEach { prompt ->
@@ -39,9 +43,9 @@ fun Mcp4kProcessor.generatePromptHandlersFile() {
 			val requiredParams = prompt.params.filter { it.isRequired }
 
 			appendLine("class $handlerClassName : McpPromptHandler {")
-			appendLine("  private val knownParams = setOf($knownParams)")
+			appendLine("  private val knownParams: Set<String> = setOf($knownParams)")
 			appendLine()
-			appendLine("  override suspend fun call(params: JsonObject): GetPromptResult {")
+			appendLine("  override suspend fun call(server: Server, params: JsonObject): GetPromptResult {")
 			appendLine("    val unknownKeys = params.keys - knownParams")
 			appendLine("    if (unknownKeys.isNotEmpty()) {")
 			appendLine(
@@ -80,8 +84,6 @@ private fun Mcp4kProcessor.generateInvocationCode(
 	promptMeta: PromptMeta,
 	indentLevel: Int = 2,
 ): String {
-	val fqFunctionName = promptMeta.fqName
-
 	// "branchingParams" are those that have a default => we might skip them if absent
 	val branchingParams = promptMeta.params.filter { it.hasDefault }
 
@@ -89,22 +91,30 @@ private fun Mcp4kProcessor.generateInvocationCode(
 	val alwaysParams = promptMeta.params.filter { !it.hasDefault }
 
 	return generatePromptOptionalChain(
-		fqFunctionName = fqFunctionName,
+		functionName = promptMeta.functionName,
 		alwaysParams = alwaysParams,
 		defaultParams = branchingParams,
 		indentLevel = indentLevel,
+		isServerExtension = promptMeta.isServerExtension,
 	)
 }
 
 private fun Mcp4kProcessor.generatePromptOptionalChain(
-	fqFunctionName: String,
+	functionName: String,
 	alwaysParams: List<ParamInfo>,
 	defaultParams: List<ParamInfo>,
 	indentLevel: Int,
+	isServerExtension: Boolean,
 ): String {
 	// Base case: if no more default-having params, just call the function with [alwaysParams].
 	if (defaultParams.isEmpty()) {
-		return callPromptFunction(fqFunctionName, alwaysParams, emptyList(), indentLevel)
+		return callPromptFunction(
+			functionName = functionName,
+			alwaysParams = alwaysParams, // not adding firstOpt
+			optionalParams = emptyList(),
+			indentLevel = indentLevel + 1,
+			isServerExtension = isServerExtension,
+		)
 	}
 	val firstOpt = defaultParams.first()
 	val remainingOpts = defaultParams.drop(1)
@@ -114,19 +124,21 @@ private fun Mcp4kProcessor.generatePromptOptionalChain(
 		appendLine("${indent}if (params.containsKey(\"${firstOpt.name}\")) {")
 		// If present, treat it like we must pass it
 		val ifBranch = generatePromptOptionalChain(
-			fqFunctionName = fqFunctionName,
+			functionName = functionName,
 			alwaysParams = alwaysParams + firstOpt,
 			defaultParams = remainingOpts,
 			indentLevel = indentLevel + 1,
+			isServerExtension = isServerExtension,
 		)
 		appendLine(ifBranch)
 		appendLine("$indent} else {")
 		// If absent, skip it so the function call uses its default
 		val elseBranch = generatePromptOptionalChain(
-			fqFunctionName = fqFunctionName,
+			functionName = functionName,
 			alwaysParams = alwaysParams, // not adding firstOpt
 			defaultParams = remainingOpts,
 			indentLevel = indentLevel + 1,
+			isServerExtension = isServerExtension,
 		)
 		appendLine(elseBranch)
 		appendLine("$indent}")
@@ -134,10 +146,11 @@ private fun Mcp4kProcessor.generatePromptOptionalChain(
 }
 
 private fun Mcp4kProcessor.callPromptFunction(
-	fqFunctionName: String,
+	functionName: String,
 	alwaysParams: List<ParamInfo>,
 	optionalParams: List<ParamInfo>,
 	indentLevel: Int,
+	isServerExtension: Boolean,
 ): String {
 	val indent = " ".repeat(indentLevel * 2)
 	val allParams = alwaysParams + optionalParams
@@ -149,8 +162,10 @@ private fun Mcp4kProcessor.callPromptFunction(
 		"${param.name} = obj.${param.name}$maybeBang"
 	}
 
+	val prefix = if (isServerExtension) "server." else ""
+
 	return buildString {
-		appendLine("$indent$fqFunctionName(")
+		appendLine("$indent$prefix$functionName(")
 		if (allParams.isNotEmpty()) {
 			appendLine("$indent  $args")
 		}

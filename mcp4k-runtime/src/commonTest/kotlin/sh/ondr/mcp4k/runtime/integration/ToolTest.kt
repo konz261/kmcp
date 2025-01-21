@@ -50,7 +50,7 @@ fun sendEmail(
  * Greets a user by [name], optionally specifying an [age].
  */
 @McpTool
-suspend fun greet(
+suspend fun Server.greet(
 	name: String,
 	age: Int = 25,
 ): ToolContent {
@@ -62,6 +62,11 @@ suspend fun greet(
  */
 @McpTool
 fun reverseString(s: String) = "Reversed: ${s.reversed()}".toTextContent()
+
+@McpTool
+suspend fun noParamTool(): ToolContent {
+	return TextContent("Hi!")
+}
 
 class ToolsTest {
 	@OptIn(ExperimentalCoroutinesApi::class)
@@ -77,9 +82,10 @@ class ToolsTest {
 				.withDispatcher(testDispatcher)
 				.withPageSize(2)
 				.withTools(
-					::greet,
+					Server::greet,
 					::sendEmail,
 					::reverseString,
+					::noParamTool,
 				)
 				.withTransport(serverTransport)
 				.withLogger { line -> log.server(line) }
@@ -109,9 +115,9 @@ class ToolsTest {
 			}
 			advanceUntilIdle()
 
-			// With 3 total tools and pageSize=2 => 2 pages
+			// With 4 total tools and pageSize=2 => 2 pages
 			assertEquals(2, pageCount, "Expected 2 pages of tools")
-			assertEquals(3, allTools.size, "Expected a total of 3 tools")
+			assertEquals(4, allTools.size, "Expected a total of 4 tools")
 
 			val expected = logLines {
 				// 1st page
@@ -128,10 +134,10 @@ class ToolsTest {
 				clientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
 				serverIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
 				serverOutgoing(
-					"""{"jsonrpc":"2.0","id":"3","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}}]}}""",
+					"""{"jsonrpc":"2.0","id":"3","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}},{"name":"noParamTool","inputSchema":{"type":"object","properties":{}}}]}}""",
 				)
 				clientIncoming(
-					"""{"jsonrpc":"2.0","id":"3","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}}]}}""",
+					"""{"jsonrpc":"2.0","id":"3","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}},{"name":"noParamTool","inputSchema":{"type":"object","properties":{}}}]}}""",
 				)
 			}
 			assertLinesMatch(expected, log, "tools list paginated test")
@@ -147,7 +153,7 @@ class ToolsTest {
 			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
-				.withTool(::greet)
+				.withTool(Server::greet)
 				.withTool(::sendEmail)
 				.withTransport(serverTransport)
 				.withLogger { line -> log.server(line) }

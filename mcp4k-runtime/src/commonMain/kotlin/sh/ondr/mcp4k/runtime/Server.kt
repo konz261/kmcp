@@ -215,14 +215,20 @@ class Server private constructor(
 			?.let { JsonObject(it) }
 			?: JsonObject(emptyMap())
 
-		return handler.call(jsonArgs)
+		return handler.call(
+			server = this,
+			params = jsonArgs,
+		)
 	}
 
 	override suspend fun handleCallToolRequest(params: CallToolParams): CallToolResult {
 		val toolName = params.name
 		val handler = mcpToolHandlers[toolName] ?: throw IllegalStateException("Handler for tool $toolName not found")
 		val jsonArguments = JsonObject(params.arguments ?: emptyMap())
-		return handler.call(jsonArguments)
+		return handler.call(
+			server = this,
+			params = jsonArguments,
+		)
 	}
 
 	override suspend fun handleListToolsRequest(params: ListToolsParams?): ListToolsResult {

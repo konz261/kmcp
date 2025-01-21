@@ -30,7 +30,7 @@ import kotlin.test.assertNotNull
  * @param code The code to review
  */
 @McpPrompt
-fun codeReviewPrompt(code: String) =
+fun Server.codeReviewPrompt(code: String) =
 	buildPrompt("The code review prompt") {
 		user { "Please review the code: $code" }
 	}
@@ -72,7 +72,7 @@ class PromptsTest {
 				.withDispatcher(testDispatcher)
 				.withPageSize(2)
 				.withPrompts(
-					::codeReviewPrompt,
+					Server::codeReviewPrompt,
 					::secondPrompt,
 					::thirdPrompt,
 					::fourthPrompt,
@@ -158,7 +158,7 @@ class PromptsTest {
 			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
-				.withPrompt(::codeReviewPrompt)
+				.withPrompt(Server::codeReviewPrompt)
 				.withTransport(serverTransport)
 				.withLogger { line -> log.server(line) }
 				.build()

@@ -15,6 +15,7 @@ data class ToolMeta(
 	val returnTypeReadable: String,
 	val originatingFile: KSFile,
 	val kdoc: String? = null,
+	val isServerExtension: Boolean,
 )
 
 fun KSFunctionDeclaration.toToolMeta(): ToolMeta {
@@ -48,5 +49,6 @@ fun KSFunctionDeclaration.toToolMeta(): ToolMeta {
 		returnTypeReadable = returnType.toString(),
 		originatingFile = containingFile!!,
 		kdoc = docString,
+		isServerExtension = extensionReceiver != null, // We check for type in validation
 	)
 }

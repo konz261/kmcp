@@ -24,7 +24,7 @@ fun Mcp4kProcessor.generateToolParamsClass(toolMeta: ToolMeta) {
 
 		appendLine("@Serializable")
 		appendLine("@JsonSchema")
-		appendLine("data class ${toolMeta.paramsClassName}(")
+		appendLine("class ${toolMeta.paramsClassName}(")
 
 		toolMeta.params.forEachIndexed { index, p ->
 			val comma = if (index == toolMeta.params.size - 1) "" else ","
