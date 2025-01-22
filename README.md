@@ -20,11 +20,7 @@ Tools and prompts are just functions - simply add annotations and let mcp4k hand
 ```kotlin
 @McpTool
 fun greet(name: String) = "Hello, $name!".toTextContent()
-```
 
-Done! Now, register the tool and start the server:
-
-```kotlin
 fun main() = runBlocking {
   val server = Server.Builder()
     .withTool(::greet)
@@ -38,13 +34,13 @@ fun main() = runBlocking {
   }
 }
 ```
-That's it! Compile the above code and link the native binary to Claude Desktop by adding it to your `claude_desktop_config.json` file.
+That's it!
 
-The `greet` tool will now be exposed over MCP.
+To use the tool in Claude Desktop, add the compiled binary to your `claude_desktop_config.json` file. 
 
 <br>
 
-**mcp4k is in early-development. This API will change significantly..**
+**mcp4k is in early-development. This API will change significantly.**
 
 
 # Installation
@@ -64,16 +60,6 @@ plugins {
 # Examples
 
 ## Tools
-
-mcp4k supports `@McpTool` functions with various argument types, including
-* Primitives
-* Strings
-* Lists
-* Maps
-* Enums
-* @JsonSchema classes
-
-KDoc parameter descriptions are type-safe and will throw a compile-time error if you specify a non-existing property.
 
 ```kotlin
 @JsonSchema @Serializable
@@ -109,7 +95,6 @@ fun sendEmail(
   append("priority ${email.priority}")
 }.toTextContent()
 ```
-
 
 When clients call `tools/list`, they see a JSON schema describing the tool's input:
 
@@ -158,7 +143,7 @@ When clients call `tools/list`, they see a JSON schema describing the tool's inp
   ]
 }
 ```
-
+KDoc parameter descriptions are type-safe and will throw a compile-time error if you specify a non-existing property.
 
 Clients can now send a `tools/call` request with a JSON object describing the above schema. Invocation and type-safe deserialization will be handled by mcp4k.
 
