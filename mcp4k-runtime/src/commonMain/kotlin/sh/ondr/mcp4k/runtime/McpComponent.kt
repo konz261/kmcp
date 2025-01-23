@@ -100,7 +100,7 @@ abstract class McpComponent(
 	 * A supervisor scope used for launching coroutines that handle requests.
 	 * If one request fails, it doesn't tear down the entire component.
 	 */
-	private val scope = CoroutineScope(coroutineContext + SupervisorJob())
+	protected val scope = CoroutineScope(coroutineContext + SupervisorJob())
 
 	/**
 	 * Tracks outgoing requests that we initiated, keyed by request ID.

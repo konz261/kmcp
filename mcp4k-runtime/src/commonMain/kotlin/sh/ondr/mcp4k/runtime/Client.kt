@@ -5,10 +5,12 @@ package sh.ondr.mcp4k.runtime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.InternalSerializationApi
 import sh.ondr.mcp4k.runtime.core.ClientApprovable
 import sh.ondr.mcp4k.runtime.core.MCP_VERSION
 import sh.ondr.mcp4k.runtime.core.pagination.PaginatedEndpoint
+import sh.ondr.mcp4k.runtime.error.MethodNotFoundException
 import sh.ondr.mcp4k.runtime.sampling.SamplingProvider
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
 import sh.ondr.mcp4k.runtime.transport.Transport
@@ -17,12 +19,16 @@ import sh.ondr.mcp4k.schema.capabilities.Implementation
 import sh.ondr.mcp4k.schema.capabilities.InitializeRequest
 import sh.ondr.mcp4k.schema.capabilities.InitializeRequest.InitializeParams
 import sh.ondr.mcp4k.schema.capabilities.InitializedNotification
+import sh.ondr.mcp4k.schema.capabilities.RootsCapability
 import sh.ondr.mcp4k.schema.core.JsonRpcRequest
 import sh.ondr.mcp4k.schema.core.JsonRpcResponse
 import sh.ondr.mcp4k.schema.core.PaginatedResult
 import sh.ondr.mcp4k.schema.prompts.ListPromptsRequest
 import sh.ondr.mcp4k.schema.resources.ListResourceTemplatesRequest
 import sh.ondr.mcp4k.schema.resources.ListResourcesRequest
+import sh.ondr.mcp4k.schema.roots.ListRootsResult
+import sh.ondr.mcp4k.schema.roots.Root
+import sh.ondr.mcp4k.schema.roots.RootsListChangedNotification
 import sh.ondr.mcp4k.schema.sampling.CreateMessageRequest.CreateMessageParams
 import sh.ondr.mcp4k.schema.sampling.CreateMessageResult
 import sh.ondr.mcp4k.schema.tools.ListToolsRequest
@@ -37,9 +43,13 @@ import kotlin.coroutines.CoroutineContext
  * Typical usage:
  * ```
  * val client = Client.Builder()
- *     .withTransport(myTransport)
- *     .withClientInfo("MyClient", "2.0.0")
- *     .withCapabilities(ClientCapabilities(...))
+ *     .withTransport(StdioTransport()))
+ *     .withClientInfo("MyCustomClient", "1.2.3")
+ *     .withLogger { line -> println(line) }
+ *     .withRoot(Root(uri = "file:///home/user/project", name = "My Project"))
+ *     .withSamplingProvider { createMessageParams ->
+ *     		// ...
+ *     }
  *     .build()
  *
  * client.start()
@@ -53,6 +63,7 @@ class Client private constructor(
 	private val clientVersion: String,
 	private val logger: suspend (String) -> Unit,
 	private val permissionCallback: suspend (ClientApprovable) -> Boolean,
+	private val roots: MutableList<Root> = mutableListOf(),
 	private val samplingProvider: SamplingProvider? = null,
 	private val transport: Transport,
 	coroutineContext: CoroutineContext,
@@ -149,6 +160,65 @@ class Client private constructor(
 			} while (cursor != null)
 		}
 
+	/**
+	 * Adds a [Root] to the client. If a root with the same name or uri already exists, it will not be added.
+	 * @return `true` if the root was added, `false` otherwise.
+	 */
+	fun addRoot(root: Root): Boolean {
+		val duplicateName: Boolean = roots.any { it.name == root.name }
+		val duplicateUri: Boolean = roots.any { it.uri == root.uri }
+		if (duplicateName || duplicateUri) return false
+		roots.add(root)
+		scope.launch {
+			sendNotification(RootsListChangedNotification())
+		}
+		return true
+	}
+
+	/**
+	 * Removes a [Root] from the client.
+	 * @return `true` if the root was removed, `false` otherwise.
+	 */
+	fun removeRoot(root: Root): Boolean {
+		val removed = roots.removeAll { it == root }
+		if (removed) {
+			scope.launch {
+				sendNotification(RootsListChangedNotification())
+			}
+		}
+		return removed
+	}
+
+	/**
+	 * Removes a [Root] from the client.
+	 * @param name The name of the root to remove.
+	 * @return `true` if the root was removed, `false` otherwise.
+	 */
+	fun removeRootByName(name: String): Boolean {
+		val removed = roots.removeAll { it.name == name }
+		if (removed) {
+			scope.launch {
+				sendNotification(RootsListChangedNotification())
+			}
+		}
+		return removed
+	}
+
+	/**
+	 * Removes a [Root] from the client.
+	 * @param uri The uri of the root to remove.
+	 * @return `true` if the root was removed, `false` otherwise.
+	 */
+	fun removeRootByUri(uri: String): Boolean {
+		val removed = roots.removeAll { it.uri == uri }
+		if (removed) {
+			scope.launch {
+				sendNotification(RootsListChangedNotification())
+			}
+		}
+		return removed
+	}
+
 	override suspend fun handleCreateMessageRequest(params: CreateMessageParams): CreateMessageResult {
 		val approved = permissionCallback(params)
 		if (!approved) {
@@ -165,29 +235,46 @@ class Client private constructor(
 		}
 	}
 
+	override suspend fun handleListRootsRequest(): ListRootsResult {
+		if (clientCapabilities.roots == null) {
+			// Should always be present, just in case we adhere to spec and respond with -32601 (Method not found)
+			throw MethodNotFoundException("Client does not support roots")
+		}
+
+		return ListRootsResult(
+			roots = roots.toList(),
+		)
+	}
+
 	/**
 	 * Builder for creating a [Client] instance.
 	 *
 	 * Usage:
 	 * ```
 	 * val client = Client.Builder()
-	 *     .withTransport(myTransport)
+	 *     .withTransport(StdioTransport()))
 	 *     .withClientInfo("MyCustomClient", "1.2.3")
-	 *     .withCapabilities(ClientCapabilities(roots = RootsCapability(listChanged = true)))
 	 *     .withLogger { line -> println(line) }
+	 *     .withRoot(Root(uri = "file:///home/user/project", name = "My Project"))
+	 *     .withSamplingProvider { createMessageParams ->
+	 *     		// ...
+	 *     }
 	 *     .build()
 	 *
 	 * client.start()
 	 * client.initialize()
 	 * ```
+	 *
+	 * Roots capabilities is enabled by default and returns an empty list.
 	 */
 	class Builder {
-		private var builderCapabilities: ClientCapabilities = ClientCapabilities()
+		private var builderCapabilities: ClientCapabilities = ClientCapabilities(roots = RootsCapability(listChanged = true))
 		private var builderPermissionCallback: suspend (ClientApprovable) -> Boolean = { true }
 		private var builderClientName: String = "TestClient"
 		private var builderClientVersion: String = "1.0.0"
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
 		private var builderLogger: suspend (String) -> Unit = {}
+		private var builderRoots: MutableList<Root> = mutableListOf()
 		private var builderSamplingProvider: SamplingProvider? = null
 		private var builderTransport: Transport? = null
 		private var used = false
@@ -240,6 +327,22 @@ class Client private constructor(
 			}
 
 		/**
+		 * Adds a [Root] the client.
+		 */
+		fun withRoot(root: Root) =
+			apply {
+				builderRoots.add(root)
+			}
+
+		/**
+		 * Adds a list of [Root] instances to the client.
+		 */
+		fun withRoots(roots: List<Root>) =
+			apply {
+				builderRoots.addAll(roots)
+			}
+
+		/**
 		 * Adds a [SamplingProvider] to the client's capabilities.
 		 */
 		fun withSamplingProvider(provider: SamplingProvider) =
@@ -276,6 +379,7 @@ class Client private constructor(
 				coroutineContext = builderDispatcher,
 				logger = builderLogger,
 				permissionCallback = builderPermissionCallback,
+				roots = builderRoots,
 				samplingProvider = builderSamplingProvider,
 				transport = t,
 			)
