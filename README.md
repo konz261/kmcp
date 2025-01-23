@@ -13,9 +13,7 @@
 </p>
 
 
-mcp4k is a compiler-driven [Model Context Protocol](https://modelcontextprotocol.io) framework for Kotlin Multiplatform. It automatically generates the runtime glue and schemas that LLMs need to interact with your code.
-
-Tools and prompts are just functions - simply add annotations and let mcp4k handle all the boiler-plate:
+mcp4k is a compiler-driven framework for Kotlin Multiplatform that handles all the [Model Context Protocol](https://modelcontextprotocol.io) details behind the scenes. You just annotate your functions, and mcp4k takes care of the JSON-RPC messages, schema generation, and protocol lifecycle—so you can focus on building your application:
 
 ```kotlin
 @McpTool
@@ -36,7 +34,7 @@ fun main() = runBlocking {
 ```
 That's it!
 
-To use the tool in Claude Desktop, add the compiled binary to your `claude_desktop_config.json` file. 
+To use the above tool in Claude Desktop, add the compiled binary to your `claude_desktop_config.json` file. 
 
 <br>
 
@@ -422,8 +420,8 @@ This gives you straightforward cancellations across the entire client-server flo
 ✅ Request cancellations
 ✅ Pagination
 ✅ Sampling (client-side)
+✅ Roots
 ⬜ Completions
-⬜ Roots
 ⬜ Support logging levels
 ⬜ Proper version negotiation
 ⬜ Emit progress notifications from @McpTool functions
