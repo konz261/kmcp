@@ -44,7 +44,7 @@ import kotlin.coroutines.CoroutineContext
  * ```
  * val client = Client.Builder()
  *     .withTransport(StdioTransport()))
- *     .withClientInfo("MyCustomClient", "1.2.3")
+ *     .withClientInfo("MyCustomClient", "1.0.0")
  *     .withLogger { line -> println(line) }
  *     .withRoot(Root(uri = "file:///home/user/project", name = "My Project"))
  *     .withSamplingProvider { createMessageParams ->
@@ -253,7 +253,7 @@ class Client private constructor(
 	 * ```
 	 * val client = Client.Builder()
 	 *     .withTransport(StdioTransport()))
-	 *     .withClientInfo("MyCustomClient", "1.2.3")
+	 *     .withClientInfo("MyCustomClient", "1.0.0")
 	 *     .withLogger { line -> println(line) }
 	 *     .withRoot(Root(uri = "file:///home/user/project", name = "My Project"))
 	 *     .withSamplingProvider { createMessageParams ->

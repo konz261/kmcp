@@ -61,6 +61,21 @@ import kotlin.reflect.KFunction
  * A Model Context Protocol (MCP) server implementation that handles
  * MCP requests from a connected client via a specified [Transport].
  *
+ * Example usage:
+ * ```kotlin
+ * val server = Server.Builder()
+ *     .withLogger { line -> println(line) }
+ *     .withPageSize(25)
+ *     .withPrompt(::myPromptFunction)
+ *     .withResourceProvider(myLocalFileProvider)
+ *     .withServerInfo("MyServer", "1.0.0")
+ *     .withTool(::myToolFunction)
+ *     .withTransport(myTransport)
+ *     .build()
+ *
+ * server.start()
+ * ```
+ *
  * Tools and prompts can be added at build time via [Builder.withTool], [Builder.withTools], [Builder.withPrompt], and [Builder.withPrompts].
  * They can also be added or removed dynamically at runtime if needed.
  */
@@ -303,55 +318,55 @@ class Server private constructor(
 	 * Example:
 	 * ```kotlin
 	 * val server = Server.Builder()
-	 *     .withTransport(myTransport)
-	 *     .withTool(::myToolFunction)
-	 *     .withPrompt(::myPromptFunction)
-	 *     .withServerInfo("MyServer", "1.2.3")
 	 *     .withLogger { line -> println(line) }
+	 *     .withPageSize(25)
+	 *     .withPrompt(::myPromptFunction)
 	 *     .withResourceProvider(myLocalFileProvider)
+	 *     .withServerInfo("MyServer", "1.0.0")
+	 *     .withTool(::myToolFunction)
+	 *     .withTransport(myTransport)
 	 *     .build()
 	 *
 	 * server.start()
 	 * ```
 	 */
 	class Builder {
-		private val builderTools = mutableSetOf<String>()
-		private val builderPrompts = mutableSetOf<String>()
-		private var builderTransport: Transport? = null
-		private var builderLogger: suspend (String) -> Unit = {}
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
+		private var builderLogger: suspend (String) -> Unit = {}
 		private var builderPageSize: Int = 20
+		private val builderPrompts = mutableSetOf<String>()
+		private val builderResourceProviders = mutableListOf<ResourceProvider>()
 		private var builderServerName: String = "TestServer"
 		private var builderServerVersion: String = "1.0.0"
-		private val builderResourceProviders = mutableListOf<ResourceProvider>()
+		private val builderTools = mutableSetOf<String>()
+		private var builderTransport: Transport? = null
 		private var used = false
 
 		/**
-		 * Sets the [Transport] used by the server to communicate with clients.
-		 * This must be called before [build], or an error is thrown.
+		 * Sets the coroutine context (or dispatcher) for the server's internal coroutines.
+		 * Defaults to [Dispatchers.Default] if not set.
 		 */
-		fun withTransport(transport: Transport) =
+		fun withDispatcher(dispatcher: CoroutineContext) =
 			apply {
-				builderTransport = transport
+				builderDispatcher = dispatcher
 			}
 
 		/**
-		 * Registers a tool by referencing its @McpTool-annotated function.
+		 * Adds a logger callback for incoming/outgoing messages.
 		 */
-		fun withTool(toolFunction: KFunction<*>) =
+		fun withLogger(logger: suspend (String) -> Unit) =
 			apply {
-				require(toolFunction.name !in builderTools) {
-					"Tool with name ${toolFunction.name} already registered."
-				}
-				builderTools.add(toolFunction.name)
+				builderLogger = logger
 			}
 
 		/**
-		 * Registers multiple tools by referencing their @McpTool-annotated functions.
+		 * Sets the default page size for paginated responses.
+		 * Defaults to 20.
 		 */
-		fun withTools(vararg toolFunctions: KFunction<*>) =
+		fun withPageSize(pageSize: Int) =
 			apply {
-				toolFunctions.forEach { withTool(it) }
+				require(pageSize > 0) { "Page size must be greater than 0." }
+				builderPageSize = pageSize
 			}
 
 		/**
@@ -382,33 +397,6 @@ class Server private constructor(
 			}
 
 		/**
-		 * Sets the coroutine context (or dispatcher) for the server's internal coroutines.
-		 * Defaults to [Dispatchers.Default] if not set.
-		 */
-		fun withDispatcher(dispatcher: CoroutineContext) =
-			apply {
-				builderDispatcher = dispatcher
-			}
-
-		/**
-		 * Adds a logger callback for incoming/outgoing messages.
-		 */
-		fun withLogger(logger: suspend (String) -> Unit) =
-			apply {
-				builderLogger = logger
-			}
-
-		/**
-		 * Sets the default page size for paginated responses.
-		 * Defaults to 20.
-		 */
-		fun withPageSize(pageSize: Int) =
-			apply {
-				require(pageSize > 0) { "Page size must be greater than 0." }
-				builderPageSize = pageSize
-			}
-
-		/**
 		 * Sets the server's name and version, reported in the `initialize` response.
 		 * Defaults to "TestServer" and "1.0.0" if not provided.
 		 */
@@ -419,6 +407,34 @@ class Server private constructor(
 			builderServerName = name
 			builderServerVersion = version
 		}
+
+		/**
+		 * Registers a tool by referencing its @McpTool-annotated function.
+		 */
+		fun withTool(toolFunction: KFunction<*>) =
+			apply {
+				require(toolFunction.name !in builderTools) {
+					"Tool with name ${toolFunction.name} already registered."
+				}
+				builderTools.add(toolFunction.name)
+			}
+
+		/**
+		 * Registers multiple tools by referencing their @McpTool-annotated functions.
+		 */
+		fun withTools(vararg toolFunctions: KFunction<*>) =
+			apply {
+				toolFunctions.forEach { withTool(it) }
+			}
+
+		/**
+		 * Sets the [Transport] used by the server to communicate with clients.
+		 * This must be called before [build], or an error is thrown.
+		 */
+		fun withTransport(transport: Transport) =
+			apply {
+				builderTransport = transport
+			}
 
 		/**
 		 * Builds the [Server] instance.
