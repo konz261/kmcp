@@ -13,15 +13,35 @@
 </p>
 
 
-mcp4k is a compiler-driven framework for Kotlin Multiplatform that handles all the [Model Context Protocol](https://modelcontextprotocol.io) details behind the scenes. You just annotate your functions, and mcp4k takes care of the JSON-RPC messages, schema generation, and protocol lifecycle—so you can focus on building your application:
+mcp4k is a compiler-driven framework that handles all the [Model Context Protocol](https://modelcontextprotocol.io) details behind the scenes. 
+
+You just annotate your functions and mcp4k takes care of JSON-RPC messages, schema generation and protocol lifecycle:
 
 ```kotlin
+/**
+ * Sends a notification to multiple recipients at once.
+ *
+ * @param recipients List of recipient IDs. Must be non-empty.
+ * @param message The notification body to send
+ */
 @McpTool
-fun greet(name: String) = "Hello, $name!".toTextContent()
+suspend fun sendBulkNotification(
+  recipients: List<String>,
+  message: String,
+): ToolContent {
+  require(recipients.isNotEmpty()) {
+    "At least one recipient must be specified"
+  }
+  require(message.isNotBlank()) {
+    "Message body must not be empty"
+  }
+  delay(2000) // actually send the notification here
+  return "Sent notification to ${recipients.size} recipients!".toTextContent()
+}
 
 fun main() = runBlocking {
   val server = Server.Builder()
-    .withTool(::greet)
+    .withTool(::sendBulkNotification)
     .withTransport(StdioTransport())
     .build()
 
@@ -32,13 +52,17 @@ fun main() = runBlocking {
   }
 }
 ```
-That's it!
+That's it! To use the above tool in Claude Desktop, add the compiled binary to your `claude_desktop_config.json` file. 
 
-To use the above tool in Claude Desktop, add the compiled binary to your `claude_desktop_config.json` file. 
+mcp4k will do the following for you:
+- Generate the required JSON schemas (including tool and parameter descriptions)
+- Handle incoming tool requests
+- Convert thrown Kotlin exceptions to MCP error codes 
+
+In the above case, if no recipients are specified or the message is blank, clients will receive a `-32602 (INVALID_PARAMS)` with the error message you specified.
 
 <br>
 
-**mcp4k is in early-development. This API will change significantly.**
 
 
 # Installation
@@ -50,7 +74,7 @@ plugins {
   kotlin("multiplatform") version "2.1.0" // or kotlin("jvm")
   kotlin("plugin.serialization") version "2.1.0"
   
-  id("sh.ondr.mcp4k") version "0.3.1" // <-- Add this
+  id("sh.ondr.mcp4k") version "0.3.2" // <-- Add this
 }
 ```
 
