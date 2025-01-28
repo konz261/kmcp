@@ -74,7 +74,7 @@ plugins {
   kotlin("multiplatform") version "2.1.0" // or kotlin("jvm")
   kotlin("plugin.serialization") version "2.1.0"
   
-  id("sh.ondr.mcp4k") version "0.3.2" // <-- Add this
+  id("sh.ondr.mcp4k") version "0.3.3" // <-- Add this
 }
 ```
 

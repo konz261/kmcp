@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
 	alias(libs.plugins.kotlin.multiplatform)
 	alias(libs.plugins.kotlin.serialization)
@@ -14,7 +16,11 @@ kotlin {
 		nodejs()
 		binaries.library()
 	}
-	jvm()
+	jvm {
+		compilerOptions {
+			jvmTarget.set(JvmTarget.JVM_11)
+		}
+	}
 	linuxX64()
 	macosArm64()
 
