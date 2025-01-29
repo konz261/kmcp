@@ -8,6 +8,5 @@ allprojects {
 	repositories {
 		mavenCentral()
 		gradlePluginPortal()
-		mavenLocal()
 	}
 }
