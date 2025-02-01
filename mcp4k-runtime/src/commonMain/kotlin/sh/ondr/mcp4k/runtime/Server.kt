@@ -16,13 +16,13 @@ import sh.ondr.mcp4k.runtime.core.MCP_VERSION
 import sh.ondr.mcp4k.runtime.core.mcpPromptHandlers
 import sh.ondr.mcp4k.runtime.core.mcpPromptParams
 import sh.ondr.mcp4k.runtime.core.mcpToolHandlers
-import sh.ondr.mcp4k.runtime.core.mcpToolParams
 import sh.ondr.mcp4k.runtime.core.pagination.paginate
 import sh.ondr.mcp4k.runtime.error.MethodNotFoundException
 import sh.ondr.mcp4k.runtime.error.ResourceNotFoundException
 import sh.ondr.mcp4k.runtime.resources.ResourceProvider
 import sh.ondr.mcp4k.runtime.resources.ResourceProviderManager
 import sh.ondr.mcp4k.runtime.serialization.toJsonObject
+import sh.ondr.mcp4k.runtime.tools.getMcpTool
 import sh.ondr.mcp4k.runtime.transport.Transport
 import sh.ondr.mcp4k.schema.capabilities.Implementation
 import sh.ondr.mcp4k.schema.capabilities.InitializeRequest.InitializeParams
@@ -53,7 +53,6 @@ import sh.ondr.mcp4k.schema.tools.CallToolRequest.CallToolParams
 import sh.ondr.mcp4k.schema.tools.CallToolResult
 import sh.ondr.mcp4k.schema.tools.ListToolsRequest.ListToolsParams
 import sh.ondr.mcp4k.schema.tools.ListToolsResult
-import sh.ondr.mcp4k.schema.tools.Tool
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KFunction
 
@@ -248,13 +247,7 @@ class Server private constructor(
 
 	override suspend fun handleListToolsRequest(params: ListToolsParams?): ListToolsResult {
 		val allTools = tools.map { name ->
-			val params = mcpToolParams[name] ?: throw IllegalStateException("Tool not found: $name")
-			val paramsSchema = params.serializer().descriptor.toSchema() as Schema.ObjectSchema
-			Tool(
-				name = name,
-				description = paramsSchema.description,
-				inputSchema = paramsSchema.copy(description = null),
-			)
+			getMcpTool(name)
 		}
 		val (toolsOnPage, nextCursor) = paginate(
 			items = allTools,
