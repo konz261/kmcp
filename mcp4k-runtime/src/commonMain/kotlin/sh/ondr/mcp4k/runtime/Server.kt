@@ -80,6 +80,8 @@ import kotlin.reflect.KFunction
  */
 class Server private constructor(
 	builderResourceProviders: List<ResourceProvider>,
+	@PublishedApi
+	internal val serverContext: ServerContext?,
 	private val dispatcher: CoroutineContext,
 	private val logger: suspend (String) -> Unit,
 	private val pageSize: Int,
@@ -93,6 +95,8 @@ class Server private constructor(
 		logger = logger,
 		coroutineContext = dispatcher,
 	) {
+	inline fun <reified T> getContextAs(): T = serverContext as T
+
 	/**
 	 * Manages one or more ResourceProviders, merging resource lists and
 	 * routing resource-change callbacks into server notifications.
@@ -324,6 +328,7 @@ class Server private constructor(
 	 * ```
 	 */
 	class Builder {
+		private var builderContext: ServerContext? = null
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
 		private var builderLogger: suspend (String) -> Unit = {}
 		private var builderPageSize: Int = 20
@@ -334,6 +339,11 @@ class Server private constructor(
 		private val builderTools = mutableSetOf<String>()
 		private var builderTransport: Transport? = null
 		private var used = false
+
+		fun withContext(context: ServerContext) =
+			apply {
+				builderContext = context
+			}
 
 		/**
 		 * Sets the coroutine context (or dispatcher) for the server's internal coroutines.
@@ -441,6 +451,7 @@ class Server private constructor(
 			val transport = builderTransport ?: error("Transport must be set before building.")
 			return Server(
 				builderResourceProviders = builderResourceProviders.toList(),
+				serverContext = builderContext,
 				dispatcher = builderDispatcher,
 				logger = builderLogger,
 				pageSize = builderPageSize,
