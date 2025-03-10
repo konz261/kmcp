@@ -84,10 +84,10 @@ class PromptErrorTest {
 					"""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"unknownPrompt","arguments":{"code":"print('hello')"}}}""",
 				)
 				serverOutgoing(
-					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.METHOD_NOT_FOUND},"message":"Handler for prompt unknownPrompt not found"}}""",
+					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.METHOD_NOT_FOUND},"message":"Prompt 'unknownPrompt' not registered on this server."}}""",
 				)
 				clientIncoming(
-					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.METHOD_NOT_FOUND},"message":"Handler for prompt unknownPrompt not found"}}""",
+					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.METHOD_NOT_FOUND},"message":"Prompt 'unknownPrompt' not registered on this server."}}""",
 				)
 			}
 
