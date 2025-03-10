@@ -19,48 +19,37 @@ You just annotate your functions and mcp4k takes care of JSON-RPC messages, sche
 
 ```kotlin
 /**
- * Sends a notification to multiple recipients at once.
+ * Reverses an input string
  *
- * @param recipients List of recipient IDs. Must be non-empty.
- * @param message The notification body to send
+ * @param input The string to be reversed
  */
 @McpTool
-suspend fun sendBulkNotification(
-  recipients: List<String>,
-  message: String,
-): ToolContent {
-  require(recipients.isNotEmpty()) {
-    "At least one recipient must be specified"
-  }
-  require(message.isNotBlank()) {
-    "Message body must not be empty"
-  }
-  delay(2000) // actually send the notification here
-  return "Sent notification to ${recipients.size} recipients!".toTextContent()
-}
+fun reverseString(input: String) =
+  "Reversed: ${input.reversed()}".toTextContent()
 
 fun main() = runBlocking {
   val server = Server.Builder()
-    .withTool(::sendBulkNotification)
+    .withTool(::reverseString)
     .withTransport(StdioTransport())
     .build()
 
   server.start()
 
-  while(true) {
+  // Keep server running
+  while (true) {
     delay(1000)
   }
 }
 ```
-That's it! To use the above tool in Claude Desktop, add the compiled binary to your `claude_desktop_config.json` file. 
+
+That’s it! To use the above tool in Claude Desktop (or any other MCP-compatible client), add the compiled binary to your configuration file.
 
 mcp4k will do the following for you:
 - Generate the required JSON schemas (including tool and parameter descriptions)
 - Handle incoming tool requests
 - Convert thrown Kotlin exceptions to MCP error codes 
 
-In the above case, if no recipients are specified or the message is blank, clients will receive a `-32602 (INVALID_PARAMS)` with the error message you specified.
-
+For instance, if this tool received an invalid parameter (like passing a number when a string is expected), it would respond with a `-32602 (INVALID_PARAMS)` code. The same is true in case an `IllegalArgumentException` (or any other exception) is thrown from inside a tool function — mcp4k will catch it and map exceptions according to the protocol.
 <br>
 
 
@@ -74,7 +63,7 @@ plugins {
   kotlin("multiplatform") version "2.1.0" // or kotlin("jvm")
   kotlin("plugin.serialization") version "2.1.0"
   
-  id("sh.ondr.mcp4k") version "0.3.3" // <-- Add this
+  id("sh.ondr.mcp4k") version "0.3.5" // <-- Add this
 }
 ```
 
@@ -180,6 +169,51 @@ Annotate functions with `@McpPrompt` and return a `GetPromptResult`. Arguments m
 fun codeReviewPrompt(code: String) = buildPrompt {
   user("Please review the following code:")
   user("'''\n$code\n'''")
+}
+```
+
+<br>
+
+## Server Context
+
+In some cases, you want multiple tools or prompts to share state.
+
+mcp4k allows you to attach a custom **context object** that tools and prompts can reference. For example:
+
+```kotlin
+// 1) Implement your custom context
+class MyServerContext : ServerContext {
+  var userName: String = ""
+}
+
+// 2) A tool function that writes into the context
+@McpTool
+fun Server.setUserName(name: String): ToolContent {
+  getContextAs<MyServerContext>().userName = name
+  return "Username set to: $name".toTextContent()
+}
+
+// 3) Another tool that reads from the context
+@McpTool
+fun Server.greetUser(): ToolContent {
+  val name = getContextAs<MyServerContext>().userName
+  if (name.isEmpty()) return "No user set yet!".toTextContent()
+  return "Hello, $name!".toTextContent()
+}
+
+fun main() = runBlocking {
+  val context = MyServerContext()
+  val server = Server.Builder()
+    .withContext(context) // <-- Provide the context
+    .withTool(Server::setUserName)
+    .withTool(Server::greetUser)
+    .withTransport(StdioTransport())
+    .build()
+
+  server.start()
+  while(true) {
+    delay(1000)
+  }
 }
 ```
 
