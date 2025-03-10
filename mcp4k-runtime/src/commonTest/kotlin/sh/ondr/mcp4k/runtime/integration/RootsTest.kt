@@ -10,7 +10,7 @@ import sh.ondr.mcp4k.logLines
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
-import sh.ondr.mcp4k.runtime.transport.TestTransport
+import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.core.JsonRpcResponse
 import sh.ondr.mcp4k.schema.roots.ListRootsRequest
 import sh.ondr.mcp4k.schema.roots.ListRootsResult
@@ -29,7 +29,8 @@ class RootsTest {
 			val log = mutableListOf<String>()
 
 			// 1) Create test transport
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 
 			// 2) Build the server
 			val server = Server.Builder()

@@ -17,7 +17,7 @@ import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpTool
 import sh.ondr.mcp4k.runtime.core.toTextContent
-import sh.ondr.mcp4k.runtime.transport.TestTransport
+import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.content.ToolContent
 import sh.ondr.mcp4k.schema.tools.CallToolRequest
 import sh.ondr.mcp4k.server
@@ -44,7 +44,8 @@ class CancellationTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)

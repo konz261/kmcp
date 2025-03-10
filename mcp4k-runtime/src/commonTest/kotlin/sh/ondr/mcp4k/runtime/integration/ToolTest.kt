@@ -15,7 +15,7 @@ import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpTool
 import sh.ondr.mcp4k.runtime.core.toTextContent
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
-import sh.ondr.mcp4k.runtime.transport.TestTransport
+import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.content.TextContent
 import sh.ondr.mcp4k.schema.content.ToolContent
 import sh.ondr.mcp4k.schema.tools.CallToolRequest
@@ -76,7 +76,8 @@ class ToolsTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val serverTransport = ChannelTransport()
+			val clientTransport = serverTransport.flip()
 
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
@@ -150,7 +151,8 @@ class ToolsTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withTool(Server::greet)

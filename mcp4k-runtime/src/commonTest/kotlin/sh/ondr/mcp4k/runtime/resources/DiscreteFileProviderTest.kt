@@ -14,7 +14,7 @@ import sh.ondr.mcp4k.logLines
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
-import sh.ondr.mcp4k.runtime.transport.TestTransport
+import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.core.EmptyResult
 import sh.ondr.mcp4k.schema.core.JsonRpcErrorCodes
 import sh.ondr.mcp4k.schema.resources.ListResourcesRequest
@@ -232,7 +232,8 @@ class DiscreteFileProviderTest {
 			)
 
 			// 3) Build server with that provider
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(dispatcher)
 				.withLogger { line -> log.server(line) }
@@ -469,7 +470,8 @@ class DiscreteFileProviderTest {
 			)
 
 			// 2) Build the server with pageSize=3 and the DiscreteFileProvider
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(dispatcher)
 				.withLogger { line -> log.server(line) }

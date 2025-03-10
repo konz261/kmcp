@@ -13,7 +13,7 @@ import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpPrompt
 import sh.ondr.mcp4k.runtime.annotation.McpTool
-import sh.ondr.mcp4k.runtime.transport.TestTransport
+import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.content.TextContent
 import sh.ondr.mcp4k.schema.content.ToolContent
 import sh.ondr.mcp4k.schema.core.PingRequest
@@ -32,7 +32,8 @@ class InitializationTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.Companion.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withTransport(serverTransport)
@@ -78,7 +79,8 @@ class InitializationTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.Companion.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withTransport(serverTransport)
@@ -143,7 +145,8 @@ class InitializationTest {
 				)
 			}
 
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withTool(::greet)

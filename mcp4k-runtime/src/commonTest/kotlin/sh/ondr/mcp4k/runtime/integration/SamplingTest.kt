@@ -11,7 +11,7 @@ import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.sampling.SamplingProvider
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
-import sh.ondr.mcp4k.runtime.transport.TestTransport
+import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.content.TextContent
 import sh.ondr.mcp4k.schema.core.Role
 import sh.ondr.mcp4k.schema.sampling.CreateMessageRequest
@@ -42,7 +42,8 @@ class SamplingTest {
 			}
 
 			// 2) Create test transport
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 
 			// 3) Build the server
 			val server = Server.Builder()

@@ -4,26 +4,27 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestTransportTest {
+class ChannelTransportTest {
 	@Test
 	fun testCommunication() =
 		runTest {
-			val (client, server) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 
 			// Client writes a message
-			client.writeString("Hello, Server!")
+			clientTransport.writeString("Hello, Server!")
 
 			// Server reads the message
-			val msg = server.readString()
+			val msg = serverTransport.readString()
 			assertEquals("Hello, Server!", msg)
 
 			// Server responds
-			server.writeString("Hello, Client!")
-			val response = client.readString()
+			serverTransport.writeString("Hello, Client!")
+			val response = clientTransport.readString()
 			assertEquals("Hello, Client!", response)
 
 			// Close both
-			client.close()
-			server.close()
+			clientTransport.close()
+			serverTransport.close()
 		}
 }

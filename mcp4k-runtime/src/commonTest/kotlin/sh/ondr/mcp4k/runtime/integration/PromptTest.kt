@@ -12,7 +12,7 @@ import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpPrompt
 import sh.ondr.mcp4k.runtime.prompts.buildPrompt
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
-import sh.ondr.mcp4k.runtime.transport.TestTransport
+import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.content.TextContent
 import sh.ondr.mcp4k.schema.core.Role
 import sh.ondr.mcp4k.schema.prompts.GetPromptRequest
@@ -67,7 +67,8 @@ class PromptsTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withPageSize(2)
@@ -155,7 +156,8 @@ class PromptsTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withPrompt(Server::codeReviewPrompt)

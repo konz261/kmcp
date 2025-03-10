@@ -14,7 +14,7 @@ import sh.ondr.mcp4k.logLines
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
-import sh.ondr.mcp4k.runtime.transport.TestTransport
+import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.core.EmptyResult
 import sh.ondr.mcp4k.schema.core.JsonRpcErrorCodes
 import sh.ondr.mcp4k.schema.resources.ListResourceTemplatesRequest
@@ -148,7 +148,8 @@ class TemplateFileProviderTest {
 			)
 
 			// 3) Start a server with that provider
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(dispatcher)
 				.withLogger { line -> log.server(line) }
@@ -386,7 +387,8 @@ class TemplateFileProviderTest {
 			)
 
 			// 3 providers => 3 templates total. We'll set pageSize=1 => 3 pages.
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 
 			val server = Server.Builder()
 				.withDispatcher(dispatcher)

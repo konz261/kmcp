@@ -10,7 +10,7 @@ import sh.ondr.mcp4k.logLines
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpPrompt
-import sh.ondr.mcp4k.runtime.transport.TestTransport
+import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.core.JsonRpcErrorCodes
 import sh.ondr.mcp4k.schema.prompts.GetPromptRequest
 import sh.ondr.mcp4k.schema.prompts.GetPromptRequest.GetPromptParams
@@ -41,7 +41,8 @@ class PromptErrorTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withPrompt(::strictReviewPrompt)
@@ -102,7 +103,8 @@ class PromptErrorTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withPrompt(::strictReviewPrompt)
@@ -161,7 +163,8 @@ class PromptErrorTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withPrompt(::strictReviewPrompt)
@@ -224,7 +227,8 @@ class PromptErrorTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
 			val log = mutableListOf<String>()
 
-			val (clientTransport, serverTransport) = TestTransport.createClientAndServerTransport()
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withPrompt(::strictReviewPrompt)
