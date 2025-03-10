@@ -18,6 +18,7 @@ import sh.ondr.mcp4k.runtime.serialization.deserializeResult
 import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.content.TextContent
 import sh.ondr.mcp4k.schema.content.ToolContent
+import sh.ondr.mcp4k.schema.core.JsonRpcErrorCodes
 import sh.ondr.mcp4k.schema.tools.CallToolRequest
 import sh.ondr.mcp4k.schema.tools.CallToolResult
 import sh.ondr.mcp4k.schema.tools.ListToolsRequest
@@ -67,6 +68,9 @@ fun reverseString(s: String) = "Reversed: ${s.reversed()}".toTextContent()
 suspend fun noParamTool(): ToolContent {
 	return TextContent("Hi!")
 }
+
+@McpTool
+fun neverRegisteredTool(value: String) = "Should never be called with param: $value".toTextContent()
 
 class ToolsTest {
 	@OptIn(ExperimentalCoroutinesApi::class)
@@ -205,5 +209,77 @@ class ToolsTest {
 			assertEquals(1, callToolResult.content.size)
 			val text = (callToolResult.content.first() as? TextContent)?.text
 			assertEquals("Hello, Alice, you are 25 years old!", text)
+		}
+
+	@OptIn(ExperimentalCoroutinesApi::class)
+	@Test
+	fun testCallToolNotRegistered() =
+		runTest {
+			val testDispatcher = StandardTestDispatcher(testScheduler)
+			val log = mutableListOf<String>()
+
+			val clientTransport = ChannelTransport()
+			val serverTransport = clientTransport.flip()
+
+			// 1) Build a server that does NOT register `neverRegisteredTool`.
+			//    We only register e.g. "greet" and "sendEmail" to prove that "neverRegisteredTool" is absent from `tools`.
+			val server = Server.Builder()
+				.withDispatcher(testDispatcher)
+				.withTool(Server::greet)
+				.withTool(::sendEmail)
+				.withTransport(serverTransport)
+				.withLogger { line -> log.server(line) }
+				.build()
+			server.start()
+
+			// 2) Build the client
+			val client = Client.Builder()
+				.withTransport(clientTransport)
+				.withDispatcher(testDispatcher)
+				.withLogger { line -> log.client(line) }
+				.withClientInfo("TestClient", "1.0.0")
+				.build()
+			client.start()
+
+			// 3) Perform initialization
+			client.initialize()
+			advanceUntilIdle()
+			log.clear()
+
+			// 4) Attempt to call the "neverRegisteredTool" (which is annotated with @McpTool but never registered)
+			val resp = client.sendRequest { reqId ->
+				CallToolRequest(
+					id = reqId,
+					params = CallToolRequest.CallToolParams(
+						name = "neverRegisteredTool",
+						arguments = mapOf("value" to JsonPrimitive("Should fail")),
+					),
+				)
+			}
+			advanceUntilIdle()
+
+			// 5) Confirm there's an error in the response
+			val error = resp.error
+			assertNotNull(error, "Expected an error because 'neverRegisteredTool' isn't registered.")
+			assertEquals(error.code, JsonRpcErrorCodes.METHOD_NOT_FOUND)
+
+			// 6) Check logs to ensure we see a server-side error
+			val expected = logLines {
+				clientOutgoing(
+					"""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"neverRegisteredTool","arguments":{"value":"Should fail"}}}""",
+				)
+				serverIncoming(
+					"""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"neverRegisteredTool","arguments":{"value":"Should fail"}}}""",
+				)
+				serverOutgoing(
+					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.METHOD_NOT_FOUND},"message":"Tool 'neverRegisteredTool' not registered on this server."}}""",
+				)
+				clientIncoming(
+					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.METHOD_NOT_FOUND},"message":"Tool 'neverRegisteredTool' not registered on this server."}}""",
+				)
+			}
+
+			// If your actual error JSON differs in code or message, update accordingly.
+			assertLinesMatch(expected, log, "Check logs for unregistered tool call")
 		}
 }

@@ -227,7 +227,12 @@ class Server private constructor(
 
 	override suspend fun handleGetPromptRequest(params: GetPromptParams): GetPromptResult {
 		val promptName = params.name
-		val handler = mcpPromptHandlers[promptName] ?: throw MethodNotFoundException("Handler for prompt $promptName not found")
+		if (promptName !in prompts) {
+			throw MethodNotFoundException("Prompt '$promptName' not registered on this server.")
+		}
+		val handler = mcpPromptHandlers[promptName] ?: throw MethodNotFoundException(
+			"Handler for prompt '$promptName' not found in global registry.",
+		)
 		val jsonArgs = params.arguments
 			?.mapValues { JsonPrimitive(it.value) }
 			?.let { JsonObject(it) }
@@ -241,7 +246,10 @@ class Server private constructor(
 
 	override suspend fun handleCallToolRequest(params: CallToolParams): CallToolResult {
 		val toolName = params.name
-		val handler = mcpToolHandlers[toolName] ?: throw IllegalStateException("Handler for tool $toolName not found")
+		if (toolName !in tools) {
+			throw MethodNotFoundException("Tool '$toolName' not registered on this server.")
+		}
+		val handler = mcpToolHandlers[toolName] ?: throw IllegalStateException("Handler for tool '$toolName' not found in global registry.")
 		val jsonArguments = JsonObject(params.arguments ?: emptyMap())
 		return handler.call(
 			server = this,
