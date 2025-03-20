@@ -351,7 +351,7 @@ class Server private constructor(
 		private var builderPageSize: Int = 20
 		private val builderPrompts = mutableSetOf<String>()
 		private val builderResourceProviders = mutableListOf<ResourceProvider>()
-		private var builderServerName: String = "TestServer"
+		private var builderServerName: String = "MyServer"
 		private var builderServerVersion: String = "1.0.0"
 		private val builderTools = mutableSetOf<String>()
 		private var builderTransport: Transport? = null
@@ -370,20 +370,6 @@ class Server private constructor(
 			apply {
 				builderDispatcher = dispatcher
 			}
-
-		/**
-		 * Sets separate loggers for incoming and outgoing transport messages.
-		 *
-		 * @param logIncoming Logger for incoming transport messages
-		 * @param logOutgoing Logger for outgoing transport messages
-		 */
-		fun withTransportLogger(
-			logIncoming: suspend (String) -> Unit = {},
-			logOutgoing: suspend (String) -> Unit = {},
-		) = apply {
-			builderLogIncoming = logIncoming
-			builderLogOutgoing = logOutgoing
-		}
 
 		/**
 		 * Sets the default page size for paginated responses.
@@ -424,7 +410,7 @@ class Server private constructor(
 
 		/**
 		 * Sets the server's name and version, reported in the `initialize` response.
-		 * Defaults to "TestServer" and "1.0.0" if not provided.
+		 * Defaults to "MyServer" and "1.0.0" if not provided.
 		 */
 		fun withServerInfo(
 			name: String,
@@ -461,6 +447,20 @@ class Server private constructor(
 			apply {
 				builderTransport = transport
 			}
+
+		/**
+		 * Sets separate loggers for incoming and outgoing transport messages.
+		 *
+		 * @param logIncoming Logger for incoming transport messages
+		 * @param logOutgoing Logger for outgoing transport messages
+		 */
+		fun withTransportLogger(
+			logIncoming: suspend (String) -> Unit = {},
+			logOutgoing: suspend (String) -> Unit = {},
+		) = apply {
+			builderLogIncoming = logIncoming
+			builderLogOutgoing = logOutgoing
+		}
 
 		/**
 		 * Builds the [Server] instance.

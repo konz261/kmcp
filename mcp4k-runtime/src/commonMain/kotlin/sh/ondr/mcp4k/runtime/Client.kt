@@ -277,12 +277,12 @@ class Client private constructor(
 	 */
 	class Builder {
 		private var builderCapabilities: ClientCapabilities = ClientCapabilities(roots = RootsCapability(listChanged = true))
-		private var builderPermissionCallback: suspend (ClientApprovable) -> Boolean = { true }
-		private var builderClientName: String = "TestClient"
+		private var builderClientName: String = "MyClient"
 		private var builderClientVersion: String = "1.0.0"
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
 		private var builderLogIncoming: suspend (String) -> Unit = {}
 		private var builderLogOutgoing: suspend (String) -> Unit = {}
+		private var builderPermissionCallback: suspend (ClientApprovable) -> Boolean = { true }
 		private var builderRoots: MutableList<Root> = mutableListOf()
 		private var builderSamplingProvider: SamplingProvider? = null
 		private var builderTransport: Transport? = null
@@ -290,7 +290,7 @@ class Client private constructor(
 
 		/**
 		 * Sets the client's name and version returned during initialization.
-		 * Defaults to "TestClient" and "1.0.0" if not set.
+		 * Defaults to "MyClient" and "1.0.0" if not set.
 		 */
 		fun withClientInfo(
 			name: String,

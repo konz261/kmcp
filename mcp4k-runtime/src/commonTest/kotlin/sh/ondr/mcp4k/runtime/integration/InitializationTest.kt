@@ -37,6 +37,7 @@ class InitializationTest {
 			val clientTransport = ChannelTransport()
 			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
+				.withServerInfo("TestServer", "1.0.0")
 				.withDispatcher(testDispatcher)
 				.withTransport(serverTransport)
 				.withTransportLogger(
@@ -48,13 +49,13 @@ class InitializationTest {
 			server.start()
 
 			val client = Client.Builder()
+				.withClientInfo("TestClient", "1.0.0")
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
 				.withTransportLogger(
 					logIncoming = { msg -> log.add(clientIncoming(msg)) },
 					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
 				)
-				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
 
@@ -90,6 +91,7 @@ class InitializationTest {
 			val clientTransport = ChannelTransport()
 			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
+				.withServerInfo("TestServer", "1.0.0")
 				.withDispatcher(testDispatcher)
 				.withTransport(serverTransport)
 				.withTransportLogger(
@@ -100,13 +102,13 @@ class InitializationTest {
 			server.start()
 
 			val client = Client.Builder()
-				.withTransport(clientTransport)
+				.withClientInfo("TestClient", "1.0.0")
 				.withDispatcher(testDispatcher)
+				.withTransport(clientTransport)
 				.withTransportLogger(
 					logIncoming = { msg -> log.add(clientIncoming(msg)) },
 					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
 				)
-				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
 
@@ -162,9 +164,10 @@ class InitializationTest {
 			val clientTransport = ChannelTransport()
 			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
+				.withServerInfo("TestServer", "1.0.0")
 				.withDispatcher(testDispatcher)
-				.withTool(::greet)
 				.withPrompt(::codeReviewPrompt)
+				.withTool(::greet)
 				.withTransport(serverTransport)
 				.withTransportLogger(
 					logIncoming = { msg -> log.add(serverIncoming(msg)) },
@@ -174,13 +177,13 @@ class InitializationTest {
 			server.start()
 
 			val client = Client.Builder()
+				.withClientInfo("TestClient", "1.0.0")
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
 				.withTransportLogger(
 					logIncoming = { msg -> log.add(clientIncoming(msg)) },
 					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
 				)
-				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
 

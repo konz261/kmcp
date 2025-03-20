@@ -49,6 +49,7 @@ class SamplingTest {
 
 			// 3) Build the server
 			val server = Server.Builder()
+				.withServerInfo("TestServer", "1.0.0")
 				.withDispatcher(testDispatcher)
 				.withTransport(serverTransport)
 				.withTransportLogger(
@@ -60,15 +61,15 @@ class SamplingTest {
 
 			// 4) Build the client, with sampling provider & sampling capabilities
 			val client = Client.Builder()
-				.withTransport(clientTransport)
+				.withClientInfo("TestClient", "1.0.0")
 				.withDispatcher(testDispatcher)
+				.withPermissionCallback { userApprovable -> true }
+				.withSamplingProvider(dummyProvider)
+				.withTransport(clientTransport)
 				.withTransportLogger(
 					logIncoming = { msg -> log.add(clientIncoming(msg)) },
 					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
 				)
-				.withClientInfo("TestClient", "1.0.0")
-				.withSamplingProvider(dummyProvider)
-				.withPermissionCallback { userApprovable -> true }
 				.build()
 			client.start()
 
