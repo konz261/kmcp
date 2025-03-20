@@ -5,8 +5,9 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpPrompt
@@ -20,7 +21,8 @@ import sh.ondr.mcp4k.schema.prompts.GetPromptRequest.GetPromptParams
 import sh.ondr.mcp4k.schema.prompts.GetPromptResult
 import sh.ondr.mcp4k.schema.prompts.ListPromptsRequest
 import sh.ondr.mcp4k.schema.prompts.Prompt
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -80,14 +82,20 @@ class PromptsTest {
 					::fifthPrompt,
 				)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -114,34 +122,34 @@ class PromptsTest {
 			assertEquals(3, pageCount, "Expected exactly 3 pages for 5 prompts with pageSize=2")
 			assertEquals(5, allPrompts.size, "Should have exactly 5 prompts in total")
 
-			val expected = logLines {
+			val expected = buildLog {
 				// 1st page
-				clientOutgoing("""{"method":"prompts/list","jsonrpc":"2.0","id":"2"}""")
-				serverIncoming("""{"method":"prompts/list","jsonrpc":"2.0","id":"2"}""")
-				serverOutgoing(
+				addClientOutgoing("""{"method":"prompts/list","jsonrpc":"2.0","id":"2"}""")
+				addServerIncoming("""{"method":"prompts/list","jsonrpc":"2.0","id":"2"}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","result":{"prompts":[{"name":"codeReviewPrompt","description":"This function prompts the user to review some code","arguments":[{"name":"code","description":"The code to review","required":true}]},{"name":"secondPrompt","arguments":[{"name":"code","required":true}]}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","result":{"prompts":[{"name":"codeReviewPrompt","description":"This function prompts the user to review some code","arguments":[{"name":"code","description":"The code to review","required":true}]},{"name":"secondPrompt","arguments":[{"name":"code","required":true}]}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
 				)
 
 				// 2nd page
-				clientOutgoing("""{"method":"prompts/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
-				serverIncoming("""{"method":"prompts/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
-				serverOutgoing(
+				addClientOutgoing("""{"method":"prompts/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
+				addServerIncoming("""{"method":"prompts/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"3","result":{"prompts":[{"name":"thirdPrompt","arguments":[{"name":"code","required":true}]},{"name":"fourthPrompt","arguments":[{"name":"code","required":true}]}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6Mn0="}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"3","result":{"prompts":[{"name":"thirdPrompt","arguments":[{"name":"code","required":true}]},{"name":"fourthPrompt","arguments":[{"name":"code","required":true}]}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6Mn0="}}""",
 				)
 
 				// 3rd page
-				clientOutgoing("""{"method":"prompts/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6Mn0="}}""")
-				serverIncoming("""{"method":"prompts/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6Mn0="}}""")
-				serverOutgoing(
+				addClientOutgoing("""{"method":"prompts/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6Mn0="}}""")
+				addServerIncoming("""{"method":"prompts/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6Mn0="}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"4","result":{"prompts":[{"name":"fifthPrompt","arguments":[{"name":"code","required":true}]}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"4","result":{"prompts":[{"name":"fifthPrompt","arguments":[{"name":"code","required":true}]}]}}""",
 				)
 			}
@@ -162,14 +170,20 @@ class PromptsTest {
 				.withDispatcher(testDispatcher)
 				.withPrompt(Server::codeReviewPrompt)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -192,17 +206,17 @@ class PromptsTest {
 			}
 			advanceUntilIdle()
 
-			val expected = logLines {
-				clientOutgoing(
+			val expected = buildLog {
+				addClientOutgoing(
 					"""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"codeReviewPrompt","arguments":{"code":"some code here"}}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"codeReviewPrompt","arguments":{"code":"some code here"}}}""",
 				)
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","result":{"description":"The code review prompt","messages":[{"role":"user","content":{"type":"text","text":"Please review the code: some code here"}}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","result":{"description":"The code review prompt","messages":[{"role":"user","content":{"type":"text","text":"Please review the code: some code here"}}]}}""",
 				)
 			}

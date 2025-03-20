@@ -93,7 +93,8 @@ import kotlin.coroutines.CoroutineContext
  */
 abstract class McpComponent(
 	private val transport: Transport,
-	private val logger: (suspend (String) -> Unit)? = null,
+	private val logIncoming: suspend (String) -> Unit = {},
+	private val logOutgoing: suspend (String) -> Unit = {},
 	coroutineContext: CoroutineContext = Dispatchers.Default,
 ) {
 	/**
@@ -316,7 +317,8 @@ abstract class McpComponent(
 		} catch (e: NotImplementedError) {
 			request.returnErrorResponse("Method not found", JsonRpcErrorCodes.METHOD_NOT_FOUND)
 		} catch (e: Throwable) {
-			logError("Internal error while handling request $request", e)
+			// TODO: Implement MCP logging
+			// logError("Internal error while handling request $request", e)
 			request.returnErrorResponse("Internal error: ${e.message ?: "unknown"}", JsonRpcErrorCodes.INTERNAL_ERROR)
 		}
 
@@ -335,13 +337,18 @@ abstract class McpComponent(
 				is ResourceUpdatedNotification -> handleResourceUpdatedNotification(notification.params)
 				is RootsListChangedNotification -> handleRootsListChangedNotification()
 				is ToolListChangedNotification -> handleToolListChangedNotification()
-				else -> logWarning("Received unknown notification: ${notification::class}")
+				else -> {
+					// TODO: Implement MCP logging
+					// logWarning("Received unknown notification: ${notification::class}")
+				}
 			}
 		} catch (e: NotImplementedError) {
 			// Subclass didn't implement a particular notification handler
-			logWarning("No handler implemented for notification ${notification::class}")
+			// TODO: Implement MCP logging
+			// logWarning("No handler implemented for notification ${notification::class}")
 		} catch (e: Throwable) {
-			logError("Error handling notification $notification", e)
+			// TODO: Implement MCP logging
+			// logError("Error handling notification $notification", e)
 		}
 	}
 
@@ -364,10 +371,14 @@ abstract class McpComponent(
 				is JsonRpcResponse -> handleResponse(message)
 				is JsonRpcRequest -> dispatchRequest(message)
 				is JsonRpcNotification -> dispatchNotification(message)
-				else -> logWarning("Received unknown message type: $line")
+				else -> {
+					// TODO: Implement MCP logging
+					// logWarning("Received unknown message type: $line")
+				}
 			}
 		} catch (e: Throwable) {
-			logError("Failed to process incoming line: $line", e)
+			// TODO: Implement MCP logging
+			// logError("Failed to process incoming line: $line", e)
 			val (errorCode, errorMsg) = determineErrorResponse(method, e)
 			if (id != null) {
 				val errorResponse = JsonRpcResponse(
@@ -399,7 +410,8 @@ abstract class McpComponent(
 			outgoingRequests.remove(requestId)
 		}
 		if (deferred == null) {
-			logWarning("Received response for unknown request ID: $requestId")
+			// TODO: Implement MCP logging
+			// logWarning("Received response for unknown request ID: $requestId")
 		} else {
 			deferred.complete(response)
 		}
@@ -438,7 +450,8 @@ abstract class McpComponent(
 		try {
 			handleNotification(notification)
 		} catch (e: Throwable) {
-			logError("Error handling notification $notification", e)
+			// TODO: Implement MCP logging
+			// logError("Error handling notification $notification", e)
 		}
 	}
 
@@ -473,22 +486,4 @@ abstract class McpComponent(
 	 * Subclasses can override if they want to provide an actual implementation.
 	 */
 	private fun notImplemented(): Nothing = throw NotImplementedError("Not implemented.")
-
-	// -----------------------------------------------------
-	// Logging Utilities
-	// -----------------------------------------------------
-
-	// TODO do logging properly
-
-	private suspend fun logIncoming(line: String) = logger?.invoke("INCOMING: $line")
-
-	private suspend fun logOutgoing(line: String) = logger?.invoke("OUTGOING: $line")
-
-	private fun logWarning(message: String) {}
-
-	private fun logError(
-		message: String,
-		e: Throwable,
-	) {
-	}
 }

@@ -5,8 +5,9 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.sampling.SamplingProvider
@@ -18,7 +19,8 @@ import sh.ondr.mcp4k.schema.sampling.CreateMessageRequest
 import sh.ondr.mcp4k.schema.sampling.CreateMessageRequest.CreateMessageParams
 import sh.ondr.mcp4k.schema.sampling.CreateMessageResult
 import sh.ondr.mcp4k.schema.sampling.SamplingMessage
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -49,7 +51,10 @@ class SamplingTest {
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
@@ -57,7 +62,10 @@ class SamplingTest {
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.withSamplingProvider(dummyProvider)
 				.withPermissionCallback { userApprovable -> true }
@@ -68,23 +76,23 @@ class SamplingTest {
 			client.initialize()
 			advanceUntilIdle()
 
-			val expectedInitLogs = logLines {
-				clientOutgoing(
+			val expectedInitLogs = buildLog {
+				addClientOutgoing(
 					"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{"listChanged":true},"sampling":{}},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{"listChanged":true},"sampling":{}},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",
 				)
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"1","result":{"protocolVersion":"2024-11-05","capabilities":{},"serverInfo":{"name":"TestServer","version":"1.0.0"}}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"1","result":{"protocolVersion":"2024-11-05","capabilities":{},"serverInfo":{"name":"TestServer","version":"1.0.0"}}}""",
 				)
-				clientOutgoing(
+				addClientOutgoing(
 					"""{"method":"notifications/initialized","jsonrpc":"2.0"}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"notifications/initialized","jsonrpc":"2.0"}""",
 				)
 			}
@@ -119,17 +127,17 @@ class SamplingTest {
 			val text = (createMsgResult.content as? TextContent)?.text
 			assertEquals("Dummy completion result", text)
 
-			val expected = logLines {
-				serverOutgoing(
+			val expected = buildLog {
+				addServerOutgoing(
 					"""{"method":"sampling/createMessage","jsonrpc":"2.0","id":"1","params":{"messages":[{"role":"user","content":{"type":"text","text":"Hello from the server test"}}],"maxTokens":50}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"method":"sampling/createMessage","jsonrpc":"2.0","id":"1","params":{"messages":[{"role":"user","content":{"type":"text","text":"Hello from the server test"}}],"maxTokens":50}}""",
 				)
-				clientOutgoing(
+				addClientOutgoing(
 					"""{"jsonrpc":"2.0","id":"1","result":{"content":{"type":"text","text":"Dummy completion result"},"model":"dummy-model","role":"assistant","stopReason":"endTurn"}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"jsonrpc":"2.0","id":"1","result":{"content":{"type":"text","text":"Dummy completion result"},"model":"dummy-model","role":"assistant","stopReason":"endTurn"}}""",
 				)
 			}

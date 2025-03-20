@@ -5,8 +5,9 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
@@ -15,7 +16,8 @@ import sh.ondr.mcp4k.schema.core.JsonRpcResponse
 import sh.ondr.mcp4k.schema.roots.ListRootsRequest
 import sh.ondr.mcp4k.schema.roots.ListRootsResult
 import sh.ondr.mcp4k.schema.roots.Root
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -36,7 +38,10 @@ class RootsTest {
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
@@ -44,7 +49,10 @@ class RootsTest {
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("RootsTestClient", "1.0.0")
 				.withRoot(Root(uri = "file:///home/user/projectA", name = "Project A"))
 				.withRoot(Root(uri = "file:///home/user/projectB", name = "Project B"))
@@ -87,11 +95,11 @@ class RootsTest {
 			advanceUntilIdle()
 
 			// The client should have sent a notifications/roots/list_changed to the server
-			val expectedNotification1 = logLines {
-				clientOutgoing(
+			val expectedNotification1 = buildLog {
+				addClientOutgoing(
 					"""{"method":"notifications/roots/list_changed","jsonrpc":"2.0"}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"notifications/roots/list_changed","jsonrpc":"2.0"}""",
 				)
 			}
@@ -104,11 +112,11 @@ class RootsTest {
 			advanceUntilIdle()
 
 			// That again triggers the notification
-			val expectedNotification2 = logLines {
-				clientOutgoing(
+			val expectedNotification2 = buildLog {
+				addClientOutgoing(
 					"""{"method":"notifications/roots/list_changed","jsonrpc":"2.0"}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"notifications/roots/list_changed","jsonrpc":"2.0"}""",
 				)
 			}

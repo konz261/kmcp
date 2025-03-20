@@ -43,13 +43,16 @@ import kotlin.coroutines.CoroutineContext
  * Typical usage:
  * ```
  * val client = Client.Builder()
- *     .withTransport(StdioTransport()))
  *     .withClientInfo("MyCustomClient", "1.0.0")
- *     .withLogger { line -> println(line) }
  *     .withRoot(Root(uri = "file:///home/user/project", name = "My Project"))
  *     .withSamplingProvider { createMessageParams ->
  *     		// ...
  *     }
+ *     .withTransport(StdioTransport()))
+ *     .withTransportLogger(
+ *       logIncoming = { msg -> println("CLIENT INCOMING: $msg") },
+ *       logOutgoing = { msg -> println("CLIENT OUTGOING: $msg") },
+ *     )
  *     .build()
  *
  * client.start()
@@ -61,7 +64,8 @@ class Client private constructor(
 	private val clientCapabilities: ClientCapabilities,
 	private val clientName: String,
 	private val clientVersion: String,
-	private val logger: suspend (String) -> Unit,
+	private val logIncoming: suspend (String) -> Unit,
+	private val logOutgoing: suspend (String) -> Unit,
 	private val permissionCallback: suspend (ClientApprovable) -> Boolean,
 	private val roots: MutableList<Root> = mutableListOf(),
 	private val samplingProvider: SamplingProvider? = null,
@@ -69,7 +73,8 @@ class Client private constructor(
 	coroutineContext: CoroutineContext,
 ) : McpComponent(
 		transport = transport,
-		logger = logger,
+		logIncoming = logIncoming,
+		logOutgoing = logOutgoing,
 		coroutineContext = coroutineContext,
 	) {
 	private var initialized = false
@@ -252,13 +257,16 @@ class Client private constructor(
 	 * Usage:
 	 * ```
 	 * val client = Client.Builder()
-	 *     .withTransport(StdioTransport()))
 	 *     .withClientInfo("MyCustomClient", "1.0.0")
-	 *     .withLogger { line -> println(line) }
 	 *     .withRoot(Root(uri = "file:///home/user/project", name = "My Project"))
 	 *     .withSamplingProvider { createMessageParams ->
 	 *     		// ...
 	 *     }
+	 *     .withTransport(StdioTransport()))
+	 *     .withTransportLogger(
+	 *       logIncoming = { msg -> println("CLIENT INCOMING: $msg") },
+	 *       logOutgoing = { msg -> println("CLIENT OUTGOING: $msg") },
+	 *     )
 	 *     .build()
 	 *
 	 * client.start()
@@ -273,20 +281,12 @@ class Client private constructor(
 		private var builderClientName: String = "TestClient"
 		private var builderClientVersion: String = "1.0.0"
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
-		private var builderLogger: suspend (String) -> Unit = {}
+		private var builderLogIncoming: suspend (String) -> Unit = {}
+		private var builderLogOutgoing: suspend (String) -> Unit = {}
 		private var builderRoots: MutableList<Root> = mutableListOf()
 		private var builderSamplingProvider: SamplingProvider? = null
 		private var builderTransport: Transport? = null
 		private var used = false
-
-		/**
-		 * Sets the client's capabilities to be advertised during initialization.
-		 * Defaults to an empty [ClientCapabilities] if not set.
-		 */
-		fun withCapabilities(capabilities: ClientCapabilities) =
-			apply {
-				builderCapabilities = capabilities
-			}
 
 		/**
 		 * Sets the client's name and version returned during initialization.
@@ -307,14 +307,6 @@ class Client private constructor(
 		fun withDispatcher(dispatcher: CoroutineContext) =
 			apply {
 				builderDispatcher = dispatcher
-			}
-
-		/**
-		 * Adds a logger for incoming/outgoing messages.
-		 */
-		fun withLogger(logger: suspend (String) -> Unit) =
-			apply {
-				builderLogger = logger
 			}
 
 		/**
@@ -362,6 +354,20 @@ class Client private constructor(
 			}
 
 		/**
+		 * Sets separate loggers for incoming and outgoing transport messages.
+		 *
+		 * @param logIncoming Logger for incoming transport messages
+		 * @param logOutgoing Logger for outgoing transport messages
+		 */
+		fun withTransportLogger(
+			logIncoming: suspend (String) -> Unit = {},
+			logOutgoing: suspend (String) -> Unit = {},
+		) = apply {
+			builderLogIncoming = logIncoming
+			builderLogOutgoing = logOutgoing
+		}
+
+		/**
 		 * Builds the [Client] instance.
 		 * @throws IllegalStateException if transport was not set
 		 * @throws IllegalStateException if this builder is reused after building
@@ -377,7 +383,8 @@ class Client private constructor(
 				clientName = builderClientName,
 				clientVersion = builderClientVersion,
 				coroutineContext = builderDispatcher,
-				logger = builderLogger,
+				logIncoming = builderLogIncoming,
+				logOutgoing = builderLogOutgoing,
 				permissionCallback = builderPermissionCallback,
 				roots = builderRoots,
 				samplingProvider = builderSamplingProvider,

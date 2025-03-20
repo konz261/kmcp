@@ -7,8 +7,9 @@ import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
@@ -23,7 +24,8 @@ import sh.ondr.mcp4k.schema.resources.ResourceContents
 import sh.ondr.mcp4k.schema.resources.SubscribeRequest
 import sh.ondr.mcp4k.schema.resources.UnsubscribeRequest
 import sh.ondr.mcp4k.schema.resources.UnsubscribeRequest.UnsubscribeParams
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -79,7 +81,10 @@ class ResourceProviderManagerTest {
 			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.withTransport(serverTransport)
 				.withResourceProvider(providerA)
 				.withResourceProvider(providerB)
@@ -90,7 +95,10 @@ class ResourceProviderManagerTest {
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -114,13 +122,13 @@ class ResourceProviderManagerTest {
 			assertEquals(2, resourceList.size)
 
 			// 3) Check logs
-			val expectedListLogs = logLines {
-				clientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
-				serverIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
-				serverOutgoing(
+			val expectedListLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
+				addServerIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://fileA.txt","name":"fileA.txt","description":"File in rootA","mimeType":"text/plain"},{"uri":"file://fileB.txt","name":"fileB.txt","description":"File in rootB","mimeType":"text/plain"}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://fileA.txt","name":"fileA.txt","description":"File in rootA","mimeType":"text/plain"},{"uri":"file://fileB.txt","name":"fileB.txt","description":"File in rootB","mimeType":"text/plain"}]}}""",
 				)
 			}
@@ -149,13 +157,13 @@ class ResourceProviderManagerTest {
 			}
 
 			// Check logs for read request
-			val expectedReadALogs = logLines {
-				clientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"3","params":{"uri":"file://fileA.txt"}}""")
-				serverIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"3","params":{"uri":"file://fileA.txt"}}""")
-				serverOutgoing(
+			val expectedReadALogs = buildLog {
+				addClientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"3","params":{"uri":"file://fileA.txt"}}""")
+				addServerIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"3","params":{"uri":"file://fileA.txt"}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"3","result":{"contents":[{"uri":"file://fileA.txt","mimeType":"text/plain","text":"Hello from A!"}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"3","result":{"contents":[{"uri":"file://fileA.txt","mimeType":"text/plain","text":"Hello from A!"}]}}""",
 				)
 			}
@@ -175,11 +183,11 @@ class ResourceProviderManagerTest {
 			assertNotNull(subBResult)
 
 			// check logs for subscribe
-			val expectedSubscribeLogs = logLines {
-				clientOutgoing("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"4","params":{"uri":"file://fileB.txt"}}""")
-				serverIncoming("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"4","params":{"uri":"file://fileB.txt"}}""")
-				serverOutgoing("""{"jsonrpc":"2.0","id":"4","result":{}}""")
-				clientIncoming("""{"jsonrpc":"2.0","id":"4","result":{}}""")
+			val expectedSubscribeLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"4","params":{"uri":"file://fileB.txt"}}""")
+				addServerIncoming("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"4","params":{"uri":"file://fileB.txt"}}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"4","result":{}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"4","result":{}}""")
 			}
 			assertLinesMatch(expectedSubscribeLogs, log, "subscribe test")
 			log.clear()
@@ -190,9 +198,9 @@ class ResourceProviderManagerTest {
 			advanceUntilIdle()
 
 			// We should see "notifications/resources/updated" on the client side
-			val expectedUpdateLogs = logLines {
-				serverOutgoing("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file://fileB.txt"}}""")
-				clientIncoming("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file://fileB.txt"}}""")
+			val expectedUpdateLogs = buildLog {
+				addServerOutgoing("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file://fileB.txt"}}""")
+				addClientIncoming("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file://fileB.txt"}}""")
 			}
 			assertLinesMatch(expectedUpdateLogs, log, "resource updated test")
 			log.clear()
@@ -209,11 +217,11 @@ class ResourceProviderManagerTest {
 			val unsubBResult = unsubBResp.result?.deserializeResult<EmptyResult>()
 			assertNotNull(unsubBResult)
 
-			val expectedUnsubscribeLogs = logLines {
-				clientOutgoing("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"5","params":{"uri":"file://fileB.txt"}}""")
-				serverIncoming("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"5","params":{"uri":"file://fileB.txt"}}""")
-				serverOutgoing("""{"jsonrpc":"2.0","id":"5","result":{}}""")
-				clientIncoming("""{"jsonrpc":"2.0","id":"5","result":{}}""")
+			val expectedUnsubscribeLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"5","params":{"uri":"file://fileB.txt"}}""")
+				addServerIncoming("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"5","params":{"uri":"file://fileB.txt"}}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"5","result":{}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"5","result":{}}""")
 			}
 			assertLinesMatch(expectedUnsubscribeLogs, log, "unsubscribe test")
 		}
@@ -250,7 +258,10 @@ class ResourceProviderManagerTest {
 			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.withTransport(serverTransport)
 				.withResourceProvider(providerA)
 				.build()
@@ -259,7 +270,10 @@ class ResourceProviderManagerTest {
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("ErrorTestClient", "1.0.0")
 				.build()
 
@@ -287,11 +301,11 @@ class ResourceProviderManagerTest {
 			assertEquals(JsonRpcErrorCodes.RESOURCE_NOT_FOUND, errorResult.code)
 
 			// 4) Check logs
-			val expectedLogs = logLines {
-				clientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"2","params":{"uri":"file://nonexistent.txt"}}""")
-				serverIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"2","params":{"uri":"file://nonexistent.txt"}}""")
-				serverOutgoing("""{"jsonrpc":"2.0","id":"2","error":{"code":-32002,"message":"Resource not found: file://nonexistent.txt"}}""")
-				clientIncoming("""{"jsonrpc":"2.0","id":"2","error":{"code":-32002,"message":"Resource not found: file://nonexistent.txt"}}""")
+			val expectedLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"2","params":{"uri":"file://nonexistent.txt"}}""")
+				addServerIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"2","params":{"uri":"file://nonexistent.txt"}}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"2","error":{"code":-32002,"message":"Resource not found: file://nonexistent.txt"}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"2","error":{"code":-32002,"message":"Resource not found: file://nonexistent.txt"}}""")
 			}
 			assertLinesMatch(expectedLogs, log, "nonexistent resource error test")
 		}

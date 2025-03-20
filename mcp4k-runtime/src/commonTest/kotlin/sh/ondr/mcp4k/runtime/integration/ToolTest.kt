@@ -8,8 +8,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
 import sh.ondr.koja.JsonSchema
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpTool
@@ -23,7 +24,8 @@ import sh.ondr.mcp4k.schema.tools.CallToolRequest
 import sh.ondr.mcp4k.schema.tools.CallToolResult
 import sh.ondr.mcp4k.schema.tools.ListToolsRequest
 import sh.ondr.mcp4k.schema.tools.Tool
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -93,14 +95,20 @@ class ToolsTest {
 					::noParamTool,
 				)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -124,24 +132,24 @@ class ToolsTest {
 			assertEquals(2, pageCount, "Expected 2 pages of tools")
 			assertEquals(4, allTools.size, "Expected a total of 4 tools")
 
-			val expected = logLines {
+			val expected = buildLog {
 				// 1st page
-				clientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
-				serverIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
-				serverOutgoing(
+				addClientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
+				addServerIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"Greets a user by [name], optionally specifying an [age].","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","description":"Sends an email to [recipients] with the given [email]","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"email":{"type":"object","description":"null","properties":{"title":{"type":"string","description":"The email's title"},"body":{"type":"string","description":"The email's body"}},"required":["title"]}},"required":["recipients","email"]}}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"Greets a user by [name], optionally specifying an [age].","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","description":"Sends an email to [recipients] with the given [email]","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"email":{"type":"object","description":"null","properties":{"title":{"type":"string","description":"The email's title"},"body":{"type":"string","description":"The email's body"}},"required":["title"]}},"required":["recipients","email"]}}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
 				)
 
 				// 2nd page
-				clientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
-				serverIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
-				serverOutgoing(
+				addClientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
+				addServerIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"3","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}},{"name":"noParamTool","inputSchema":{"type":"object","properties":{}}}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"3","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}},{"name":"noParamTool","inputSchema":{"type":"object","properties":{}}}]}}""",
 				)
 			}
@@ -162,14 +170,20 @@ class ToolsTest {
 				.withTool(Server::greet)
 				.withTool(::sendEmail)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -191,13 +205,13 @@ class ToolsTest {
 			}
 			advanceUntilIdle()
 
-			val expected = logLines {
-				clientOutgoing("""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"greet","arguments":{"name":"Alice"}}}""")
-				serverIncoming("""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"greet","arguments":{"name":"Alice"}}}""")
-				serverOutgoing(
+			val expected = buildLog {
+				addClientOutgoing("""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"greet","arguments":{"name":"Alice"}}}""")
+				addServerIncoming("""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"greet","arguments":{"name":"Alice"}}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","result":{"content":[{"type":"text","text":"Hello, Alice, you are 25 years old!"}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","result":{"content":[{"type":"text","text":"Hello, Alice, you are 25 years old!"}]}}""",
 				)
 			}
@@ -228,7 +242,10 @@ class ToolsTest {
 				.withTool(Server::greet)
 				.withTool(::sendEmail)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
@@ -236,7 +253,10 @@ class ToolsTest {
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -264,17 +284,17 @@ class ToolsTest {
 			assertEquals(error.code, JsonRpcErrorCodes.METHOD_NOT_FOUND)
 
 			// 6) Check logs to ensure we see a server-side error
-			val expected = logLines {
-				clientOutgoing(
+			val expected = buildLog {
+				addClientOutgoing(
 					"""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"neverRegisteredTool","arguments":{"value":"Should fail"}}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"neverRegisteredTool","arguments":{"value":"Should fail"}}}""",
 				)
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.METHOD_NOT_FOUND},"message":"Tool 'neverRegisteredTool' not registered on this server."}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.METHOD_NOT_FOUND},"message":"Tool 'neverRegisteredTool' not registered on this server."}}""",
 				)
 			}

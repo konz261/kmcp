@@ -9,8 +9,9 @@ import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
@@ -27,7 +28,8 @@ import sh.ondr.mcp4k.schema.resources.Resource
 import sh.ondr.mcp4k.schema.resources.ResourceContents
 import sh.ondr.mcp4k.schema.resources.SubscribeRequest
 import sh.ondr.mcp4k.schema.resources.UnsubscribeRequest
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -236,7 +238,10 @@ class DiscreteFileProviderTest {
 			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(dispatcher)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.withTransport(serverTransport)
 				.withResourceProvider(provider)
 				.build()
@@ -246,17 +251,20 @@ class DiscreteFileProviderTest {
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(dispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
 
-			// (A) Initialization
+			// 5) Perform MCP initialization
 			client.initialize()
 			advanceUntilIdle()
 			log.clear()
 
-			// (B) List resources => expect 2
+			// 6) List resources => expect 2
 			val listResp = client.sendRequest { id ->
 				ListResourcesRequest(id = id, params = ListResourcesParams())
 			}
@@ -275,13 +283,13 @@ class DiscreteFileProviderTest {
 			)
 
 			// Check the logs for the list call (partial check)
-			val expectedListLogs = logLines {
-				clientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
-				serverIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
-				serverOutgoing(
+			val expectedListLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
+				addServerIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://hello.txt","name":"hello.txt","description":"File at hello.txt","mimeType":"text/plain"},{"uri":"file://sub/folder/bye.txt","name":"bye.txt","description":"File at sub/folder/bye.txt","mimeType":"text/plain"}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://hello.txt","name":"hello.txt","description":"File at hello.txt","mimeType":"text/plain"},{"uri":"file://sub/folder/bye.txt","name":"bye.txt","description":"File at sub/folder/bye.txt","mimeType":"text/plain"}]}}""",
 				)
 			}
@@ -305,13 +313,13 @@ class DiscreteFileProviderTest {
 				else -> error("Expected text content for hello.txt")
 			}
 			// Check logs for reading "hello.txt"
-			val expectedReadHelloLogs = logLines {
-				clientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"3","params":{"uri":"file://hello.txt"}}""")
-				serverIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"3","params":{"uri":"file://hello.txt"}}""")
-				serverOutgoing(
+			val expectedReadHelloLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"3","params":{"uri":"file://hello.txt"}}""")
+				addServerIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"3","params":{"uri":"file://hello.txt"}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"3","result":{"contents":[{"uri":"file://hello.txt","mimeType":"text/plain","text":"Hello from top-level file!"}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"3","result":{"contents":[{"uri":"file://hello.txt","mimeType":"text/plain","text":"Hello from top-level file!"}]}}""",
 				)
 			}
@@ -336,13 +344,13 @@ class DiscreteFileProviderTest {
 			}
 
 			// Check logs for reading "sub/folder/bye.txt"
-			val expectedReadByeLogs = logLines {
-				clientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"4","params":{"uri":"file://sub/folder/bye.txt"}}""")
-				serverIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"4","params":{"uri":"file://sub/folder/bye.txt"}}""")
-				serverOutgoing(
+			val expectedReadByeLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"4","params":{"uri":"file://sub/folder/bye.txt"}}""")
+				addServerIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"4","params":{"uri":"file://sub/folder/bye.txt"}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"4","result":{"contents":[{"uri":"file://sub/folder/bye.txt","mimeType":"text/plain","text":"Bye from sub-folder!"}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"4","result":{"contents":[{"uri":"file://sub/folder/bye.txt","mimeType":"text/plain","text":"Bye from sub-folder!"}]}}""",
 				)
 			}
@@ -362,13 +370,13 @@ class DiscreteFileProviderTest {
 			assertEquals(JsonRpcErrorCodes.RESOURCE_NOT_FOUND, err.code)
 
 			// Check logs for reading nonexistent file
-			val expectedNoSuchFileLogs = logLines {
-				clientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"5","params":{"uri":"file://sub/folder/no-such-file.txt"}}""")
-				serverIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"5","params":{"uri":"file://sub/folder/no-such-file.txt"}}""")
-				serverOutgoing(
+			val expectedNoSuchFileLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"5","params":{"uri":"file://sub/folder/no-such-file.txt"}}""")
+				addServerIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"5","params":{"uri":"file://sub/folder/no-such-file.txt"}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"5","error":{"code":-32002,"message":"Resource not found: file://sub/folder/no-such-file.txt"}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"5","error":{"code":-32002,"message":"Resource not found: file://sub/folder/no-such-file.txt"}}""",
 				)
 			}
@@ -386,11 +394,11 @@ class DiscreteFileProviderTest {
 			assertNotNull(subReq.result?.deserializeResult<EmptyResult>())
 
 			// Check logs for subscribe
-			val expectedSubscribeLogs = logLines {
-				clientOutgoing("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"6","params":{"uri":"file://sub/folder/bye.txt"}}""")
-				serverIncoming("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"6","params":{"uri":"file://sub/folder/bye.txt"}}""")
-				serverOutgoing("""{"jsonrpc":"2.0","id":"6","result":{}}""")
-				clientIncoming("""{"jsonrpc":"2.0","id":"6","result":{}}""")
+			val expectedSubscribeLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"6","params":{"uri":"file://sub/folder/bye.txt"}}""")
+				addServerIncoming("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"6","params":{"uri":"file://sub/folder/bye.txt"}}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"6","result":{}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"6","result":{}}""")
 			}
 			assertLinesMatch(expectedSubscribeLogs, log, "subscribe logs")
 			log.clear()
@@ -400,9 +408,9 @@ class DiscreteFileProviderTest {
 			advanceUntilIdle()
 
 			// Verify logs for the "resources/updated" notification, etc.
-			val expectedNotificationLogs = logLines {
-				serverOutgoing("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file://sub/folder/bye.txt"}}""")
-				clientIncoming("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file://sub/folder/bye.txt"}}""")
+			val expectedNotificationLogs = buildLog {
+				addServerOutgoing("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file://sub/folder/bye.txt"}}""")
+				addClientIncoming("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file://sub/folder/bye.txt"}}""")
 			}
 			assertLinesMatch(expectedNotificationLogs, log, "resource updated notification logs")
 			log.clear()
@@ -418,11 +426,11 @@ class DiscreteFileProviderTest {
 			val unsubResult = unsubReq.result?.deserializeResult<EmptyResult>()
 			assertNotNull(unsubResult, "Expected an EmptyResult from unsubscribe")
 
-			val expectedUnsubscribeLogs = logLines {
-				clientOutgoing("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"7","params":{"uri":"file://sub/folder/bye.txt"}}""")
-				serverIncoming("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"7","params":{"uri":"file://sub/folder/bye.txt"}}""")
-				serverOutgoing("""{"jsonrpc":"2.0","id":"7","result":{}}""")
-				clientIncoming("""{"jsonrpc":"2.0","id":"7","result":{}}""")
+			val expectedUnsubscribeLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"7","params":{"uri":"file://sub/folder/bye.txt"}}""")
+				addServerIncoming("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"7","params":{"uri":"file://sub/folder/bye.txt"}}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"7","result":{}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"7","result":{}}""")
 			}
 			assertLinesMatch(expectedUnsubscribeLogs, log, "unsubscribe logs")
 			log.clear()
@@ -474,7 +482,10 @@ class DiscreteFileProviderTest {
 			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(dispatcher)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.withTransport(serverTransport)
 				.withResourceProvider(provider)
 				.withPageSize(3)
@@ -485,7 +496,10 @@ class DiscreteFileProviderTest {
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(dispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -509,34 +523,34 @@ class DiscreteFileProviderTest {
 			assertEquals(3, pageCount, "Expected exactly 3 pages (3 + 3 + 1).")
 			assertEquals(7, allResources.size, "Should have 7 total resources listed.")
 
-			val expectedLogs = logLines {
+			val expectedLogs = buildLog {
 				// 1st page
-				clientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"2"}""")
-				serverIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"2"}""")
-				serverOutgoing(
+				addClientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"2"}""")
+				addServerIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"2"}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://file0.txt","name":"file0.txt","description":"File at file0.txt","mimeType":"text/plain"},{"uri":"file://file1.txt","name":"file1.txt","description":"File at file1.txt","mimeType":"text/plain"},{"uri":"file://file2.txt","name":"file2.txt","description":"File at file2.txt","mimeType":"text/plain"}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6M30="}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","result":{"resources":[{"uri":"file://file0.txt","name":"file0.txt","description":"File at file0.txt","mimeType":"text/plain"},{"uri":"file://file1.txt","name":"file1.txt","description":"File at file1.txt","mimeType":"text/plain"},{"uri":"file://file2.txt","name":"file2.txt","description":"File at file2.txt","mimeType":"text/plain"}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6M30="}}""",
 				)
 
 				// 2nd page
-				clientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6M30="}}""")
-				serverIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6M30="}}""")
-				serverOutgoing(
+				addClientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6M30="}}""")
+				addServerIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6M30="}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"3","result":{"resources":[{"uri":"file://file3.txt","name":"file3.txt","description":"File at file3.txt","mimeType":"text/plain"},{"uri":"file://file4.txt","name":"file4.txt","description":"File at file4.txt","mimeType":"text/plain"},{"uri":"file://file5.txt","name":"file5.txt","description":"File at file5.txt","mimeType":"text/plain"}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6M30="}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"3","result":{"resources":[{"uri":"file://file3.txt","name":"file3.txt","description":"File at file3.txt","mimeType":"text/plain"},{"uri":"file://file4.txt","name":"file4.txt","description":"File at file4.txt","mimeType":"text/plain"},{"uri":"file://file5.txt","name":"file5.txt","description":"File at file5.txt","mimeType":"text/plain"}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6M30="}}""",
 				)
 
 				// 3rd page
-				clientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6M30="}}""")
-				serverIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6M30="}}""")
-				serverOutgoing(
+				addClientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6M30="}}""")
+				addServerIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6M30="}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"4","result":{"resources":[{"uri":"file://file6.txt","name":"file6.txt","description":"File at file6.txt","mimeType":"text/plain"}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"4","result":{"resources":[{"uri":"file://file6.txt","name":"file6.txt","description":"File at file6.txt","mimeType":"text/plain"}]}}""",
 				)
 			}

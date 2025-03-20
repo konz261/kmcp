@@ -7,19 +7,49 @@ import kotlin.test.fail
  *
  * Usage:
  * ```
- * val expected = logLines {
- *     clientOutgoing("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
- *     serverIncoming("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
- *     serverOutgoing("""{"jsonrpc":"2.0","id":"2","result":{}}""")
- *     clientIncoming("""{"jsonrpc":"2.0","id":"2","result":{}}""")
+ * val expected = buildLog {
+ *     addClientOutgoing("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
+ *     addServerIncoming("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
+ *     addServerOutgoing("""{"jsonrpc":"2.0","id":"2","result":{}}""")
+ *     addClientIncoming("""{"jsonrpc":"2.0","id":"2","result":{}}""")
  * }
  * assertLinesMatch(expected, log, "ping test")
  * ```
  */
-fun logLines(buildBlock: LogAssertionBuilder.() -> Unit): List<String> {
+fun buildLog(buildBlock: LogAssertionBuilder.() -> Unit): List<String> {
 	val builder = LogAssertionBuilder()
 	builder.buildBlock()
 	return builder.build()
+}
+
+fun clientIncoming(msg: String) = "CLIENT INCOMING: $msg"
+
+fun clientOutgoing(msg: String) = "CLIENT OUTGOING: $msg"
+
+fun serverIncoming(msg: String) = "SERVER INCOMING: $msg"
+
+fun serverOutgoing(msg: String) = "SERVER OUTGOING: $msg"
+
+class LogAssertionBuilder {
+	private val expectedLines = mutableListOf<String>()
+
+	fun addClientOutgoing(msg: String) {
+		expectedLines += clientOutgoing(msg)
+	}
+
+	fun addClientIncoming(msg: String) {
+		expectedLines += clientIncoming(msg)
+	}
+
+	fun addServerOutgoing(msg: String) {
+		expectedLines += serverOutgoing(msg)
+	}
+
+	fun addServerIncoming(msg: String) {
+		expectedLines += serverIncoming(msg)
+	}
+
+	fun build() = expectedLines.toList()
 }
 
 fun assertLinesMatch(
@@ -63,34 +93,4 @@ fun assertLinesMatch(
 	}
 
 	// If we get here, all lines match exactly.
-}
-
-class LogAssertionBuilder {
-	private val expectedLines = mutableListOf<String>()
-
-	fun clientOutgoing(json: String) {
-		expectedLines += """CLIENT OUTGOING: $json"""
-	}
-
-	fun clientIncoming(json: String) {
-		expectedLines += """CLIENT INCOMING: $json"""
-	}
-
-	fun serverOutgoing(json: String) {
-		expectedLines += """SERVER OUTGOING: $json"""
-	}
-
-	fun serverIncoming(json: String) {
-		expectedLines += """SERVER INCOMING: $json"""
-	}
-
-	fun build() = expectedLines.toList()
-}
-
-fun MutableList<String>.client(line: String) {
-	add("CLIENT $line")
-}
-
-fun MutableList<String>.server(line: String) {
-	add("SERVER $line")
 }

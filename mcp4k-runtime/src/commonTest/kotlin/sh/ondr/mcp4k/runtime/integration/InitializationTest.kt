@@ -7,8 +7,9 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpPrompt
@@ -20,7 +21,8 @@ import sh.ondr.mcp4k.schema.core.PingRequest
 import sh.ondr.mcp4k.schema.core.Role
 import sh.ondr.mcp4k.schema.prompts.GetPromptResult
 import sh.ondr.mcp4k.schema.prompts.PromptMessage
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -37,7 +39,10 @@ class InitializationTest {
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 
 			server.start()
@@ -45,7 +50,10 @@ class InitializationTest {
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.add("CLIENT $line") }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -53,21 +61,21 @@ class InitializationTest {
 			client.initialize()
 			advanceUntilIdle()
 
-			val expected = logLines {
-				clientOutgoing(
+			val expected = buildLog {
+				addClientOutgoing(
 					"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{"listChanged":true}},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{"listChanged":true}},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",
 				)
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"1","result":{"protocolVersion":"2024-11-05","capabilities":{},"serverInfo":{"name":"TestServer","version":"1.0.0"}}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"1","result":{"protocolVersion":"2024-11-05","capabilities":{},"serverInfo":{"name":"TestServer","version":"1.0.0"}}}""",
 				)
-				clientOutgoing("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
-				serverIncoming("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
+				addClientOutgoing("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
+				addServerIncoming("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
 			}
 
 			assertLinesMatch(expected, log, "Initialization handshake test")
@@ -84,14 +92,20 @@ class InitializationTest {
 			val server = Server.Builder()
 				.withDispatcher(testDispatcher)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -111,11 +125,11 @@ class InitializationTest {
 			assertNull(response.error, "Ping should not return an error.")
 			assertEquals("{}", response.result.toString(), "Ping result should be an empty object.")
 
-			val expected = logLines {
-				clientOutgoing("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
-				serverIncoming("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
-				serverOutgoing("""{"jsonrpc":"2.0","id":"2","result":{}}""")
-				clientIncoming("""{"jsonrpc":"2.0","id":"2","result":{}}""")
+			val expected = buildLog {
+				addClientOutgoing("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
+				addServerIncoming("""{"method":"ping","jsonrpc":"2.0","id":"2"}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"2","result":{}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"2","result":{}}""")
 			}
 
 			assertLinesMatch(expected, log, "ping test")
@@ -152,14 +166,20 @@ class InitializationTest {
 				.withTool(::greet)
 				.withPrompt(::codeReviewPrompt)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -167,21 +187,21 @@ class InitializationTest {
 			client.initialize()
 			advanceUntilIdle()
 
-			val expected = logLines {
-				clientOutgoing(
+			val expected = buildLog {
+				addClientOutgoing(
 					"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{"listChanged":true}},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{"listChanged":true}},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",
 				)
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"1","result":{"protocolVersion":"2024-11-05","capabilities":{"prompts":{},"tools":{}},"serverInfo":{"name":"TestServer","version":"1.0.0"}}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"1","result":{"protocolVersion":"2024-11-05","capabilities":{"prompts":{},"tools":{}},"serverInfo":{"name":"TestServer","version":"1.0.0"}}}""",
 				)
-				clientOutgoing("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
-				serverIncoming("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
+				addClientOutgoing("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
+				addServerIncoming("""{"method":"notifications/initialized","jsonrpc":"2.0"}""")
 			}
 
 			assertLinesMatch(expected, log, "Initialization with capabilities test")

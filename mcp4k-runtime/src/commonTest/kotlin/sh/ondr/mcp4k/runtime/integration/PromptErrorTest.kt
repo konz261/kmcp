@@ -5,8 +5,9 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpPrompt
@@ -15,7 +16,8 @@ import sh.ondr.mcp4k.schema.core.JsonRpcErrorCodes
 import sh.ondr.mcp4k.schema.prompts.GetPromptRequest
 import sh.ondr.mcp4k.schema.prompts.GetPromptRequest.GetPromptParams
 import sh.ondr.mcp4k.schema.prompts.GetPromptResult
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -47,14 +49,20 @@ class PromptErrorTest {
 				.withDispatcher(testDispatcher)
 				.withPrompt(::strictReviewPrompt)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -76,17 +84,17 @@ class PromptErrorTest {
 			}
 			advanceUntilIdle()
 
-			val expected = logLines {
-				clientOutgoing(
+			val expected = buildLog {
+				addClientOutgoing(
 					"""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"unknownPrompt","arguments":{"code":"print('hello')"}}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"unknownPrompt","arguments":{"code":"print('hello')"}}}""",
 				)
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.METHOD_NOT_FOUND},"message":"Prompt 'unknownPrompt' not registered on this server."}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.METHOD_NOT_FOUND},"message":"Prompt 'unknownPrompt' not registered on this server."}}""",
 				)
 			}
@@ -109,14 +117,20 @@ class PromptErrorTest {
 				.withDispatcher(testDispatcher)
 				.withPrompt(::strictReviewPrompt)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -138,15 +152,15 @@ class PromptErrorTest {
 			}
 			advanceUntilIdle()
 
-			val expected = logLines {
-				clientOutgoing("""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"strictReviewPrompt","arguments":{}}}""")
-				serverIncoming("""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"strictReviewPrompt","arguments":{}}}""")
+			val expected = buildLog {
+				addClientOutgoing("""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"strictReviewPrompt","arguments":{}}}""")
+				addServerIncoming("""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"strictReviewPrompt","arguments":{}}}""")
 				// Expect an error: missing required argument 'code'.
 				// Server returns INVALID_PARAMS.
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.INVALID_PARAMS},"message":"Missing required argument 'code'"}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.INVALID_PARAMS},"message":"Missing required argument 'code'"}}""",
 				)
 			}
@@ -169,14 +183,20 @@ class PromptErrorTest {
 				.withDispatcher(testDispatcher)
 				.withPrompt(::strictReviewPrompt)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -198,19 +218,19 @@ class PromptErrorTest {
 			}
 			advanceUntilIdle()
 
-			val expected = logLines {
-				clientOutgoing(
+			val expected = buildLog {
+				addClientOutgoing(
 					"""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"strictReviewPrompt","arguments":{"foo":"bar"}}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"prompts/get","jsonrpc":"2.0","id":"2","params":{"name":"strictReviewPrompt","arguments":{"foo":"bar"}}}""",
 				)
 				// Expect an error: unknown argument 'foo'.
 				// Server returns INVALID_PARAMS again:
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.INVALID_PARAMS},"message":"Unknown argument 'foo' for prompt 'strictReviewPrompt'"}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.INVALID_PARAMS},"message":"Unknown argument 'foo' for prompt 'strictReviewPrompt'"}}""",
 				)
 			}
@@ -233,14 +253,20 @@ class PromptErrorTest {
 				.withDispatcher(testDispatcher)
 				.withPrompt(::strictReviewPrompt)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -256,14 +282,14 @@ class PromptErrorTest {
 
 			advanceUntilIdle()
 
-			val expected = logLines {
+			val expected = buildLog {
 				// We don't expect client outgoing because we are manually sending the request.
-				serverIncoming(malformedJson)
+				addServerIncoming(malformedJson)
 				// Expect an error: missing 'name' field in params.
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.INVALID_PARAMS},"message":"Missing required field 'name' in prompts/get request"}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","error":{"code":${JsonRpcErrorCodes.INVALID_PARAMS},"message":"Missing required field 'name' in prompts/get request"}}""",
 				)
 			}

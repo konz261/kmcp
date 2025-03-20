@@ -11,8 +11,9 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpTool
@@ -20,7 +21,8 @@ import sh.ondr.mcp4k.runtime.core.toTextContent
 import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.content.ToolContent
 import sh.ondr.mcp4k.schema.tools.CallToolRequest
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.fail
 
@@ -51,14 +53,20 @@ class CancellationTest {
 				.withDispatcher(testDispatcher)
 				.withTool(::slowToolOperation)
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(testDispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -91,17 +99,17 @@ class CancellationTest {
 			requestJob.cancel("Client doesn't want to wait anymore")
 			advanceUntilIdle()
 
-			val expected = logLines {
-				clientOutgoing(
+			val expected = buildLog {
+				addClientOutgoing(
 					"""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"slowToolOperation","arguments":{"iterations":20}}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"slowToolOperation","arguments":{"iterations":20}}}""",
 				)
-				clientOutgoing(
+				addClientOutgoing(
 					"""{"method":"notifications/cancelled","jsonrpc":"2.0","params":{"requestId":"2","reason":"Client doesn't want to wait anymore"}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"notifications/cancelled","jsonrpc":"2.0","params":{"requestId":"2","reason":"Client doesn't want to wait anymore"}}""",
 				)
 			}

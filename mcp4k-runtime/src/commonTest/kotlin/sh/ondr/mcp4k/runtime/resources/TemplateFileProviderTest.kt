@@ -9,8 +9,9 @@ import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
@@ -31,7 +32,8 @@ import sh.ondr.mcp4k.schema.resources.SubscribeRequest
 import sh.ondr.mcp4k.schema.resources.SubscribeRequest.SubscribeParams
 import sh.ondr.mcp4k.schema.resources.UnsubscribeRequest
 import sh.ondr.mcp4k.schema.resources.UnsubscribeRequest.UnsubscribeParams
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -152,7 +154,10 @@ class TemplateFileProviderTest {
 			val serverTransport = clientTransport.flip()
 			val server = Server.Builder()
 				.withDispatcher(dispatcher)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.withTransport(serverTransport)
 				.withResourceProvider(provider)
 				.build()
@@ -163,7 +168,10 @@ class TemplateFileProviderTest {
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(dispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 
@@ -187,11 +195,11 @@ class TemplateFileProviderTest {
 			assertNotNull(listResp)
 			assertEquals(0, listResp.resources.size, "Template provider should list 0 discrete resources")
 
-			val expectedListLogs = logLines {
-				clientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
-				serverIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
-				serverOutgoing("""{"jsonrpc":"2.0","id":"2","result":{"resources":[]}}""")
-				clientIncoming("""{"jsonrpc":"2.0","id":"2","result":{"resources":[]}}""")
+			val expectedListLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
+				addServerIncoming("""{"method":"resources/list","jsonrpc":"2.0","id":"2","params":{}}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"2","result":{"resources":[]}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"2","result":{"resources":[]}}""")
 			}
 			assertLinesMatch(expectedListLogs, log, "template provider listResources logs")
 			log.clear()
@@ -212,13 +220,13 @@ class TemplateFileProviderTest {
 			val templateEntry = listTplResp.resourceTemplates.first()
 			assertEquals("file:///{path}", templateEntry.uriTemplate)
 
-			val expectedTplLogs = logLines {
-				clientOutgoing("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"3","params":{}}""")
-				serverIncoming("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"3","params":{}}""")
-				serverOutgoing(
+			val expectedTplLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"3","params":{}}""")
+				addServerIncoming("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"3","params":{}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"3","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Arbitrary local file access","description":"Allows reading any file by specifying {path}"}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"3","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Arbitrary local file access","description":"Allows reading any file by specifying {path}"}]}}""",
 				)
 			}
@@ -246,13 +254,13 @@ class TemplateFileProviderTest {
 				else -> error("Expected text content for the sub/folder/notes.txt file")
 			}
 
-			val expectedReadLogs = logLines {
-				clientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"4","params":{"uri":"file:///sub/folder/notes.txt"}}""")
-				serverIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"4","params":{"uri":"file:///sub/folder/notes.txt"}}""")
-				serverOutgoing(
+			val expectedReadLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"4","params":{"uri":"file:///sub/folder/notes.txt"}}""")
+				addServerIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"4","params":{"uri":"file:///sub/folder/notes.txt"}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"4","result":{"contents":[{"uri":"file:///sub/folder/notes.txt","mimeType":"text/plain","text":"Hello from subfolder template!"}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"4","result":{"contents":[{"uri":"file:///sub/folder/notes.txt","mimeType":"text/plain","text":"Hello from subfolder template!"}]}}""",
 				)
 			}
@@ -272,13 +280,13 @@ class TemplateFileProviderTest {
 			assertNotNull(invalidRespError, "Expected an error for nonexistent file in TemplateFileProvider")
 			assertEquals(JsonRpcErrorCodes.RESOURCE_NOT_FOUND, invalidRespError.code)
 
-			val expectedInvalidLogs = logLines {
-				clientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"5","params":{"uri":"file:///sub/folder/doesnotexist.txt"}}""")
-				serverIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"5","params":{"uri":"file:///sub/folder/doesnotexist.txt"}}""")
-				serverOutgoing(
+			val expectedInvalidLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/read","jsonrpc":"2.0","id":"5","params":{"uri":"file:///sub/folder/doesnotexist.txt"}}""")
+				addServerIncoming("""{"method":"resources/read","jsonrpc":"2.0","id":"5","params":{"uri":"file:///sub/folder/doesnotexist.txt"}}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"5","error":{"code":-32002,"message":"Resource not found: file:///sub/folder/doesnotexist.txt"}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"5","error":{"code":-32002,"message":"Resource not found: file:///sub/folder/doesnotexist.txt"}}""",
 				)
 			}
@@ -297,11 +305,11 @@ class TemplateFileProviderTest {
 			val subResult = subReq.result?.deserializeResult<EmptyResult>()
 			assertNotNull(subResult, "Expected an EmptyResult from subscribe")
 
-			val expectedSubscribeLogs = logLines {
-				clientOutgoing("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"6","params":{"uri":"file:///sub/folder/notes.txt"}}""")
-				serverIncoming("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"6","params":{"uri":"file:///sub/folder/notes.txt"}}""")
-				serverOutgoing("""{"jsonrpc":"2.0","id":"6","result":{}}""")
-				clientIncoming("""{"jsonrpc":"2.0","id":"6","result":{}}""")
+			val expectedSubscribeLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"6","params":{"uri":"file:///sub/folder/notes.txt"}}""")
+				addServerIncoming("""{"method":"resources/subscribe","jsonrpc":"2.0","id":"6","params":{"uri":"file:///sub/folder/notes.txt"}}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"6","result":{}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"6","result":{}}""")
 			}
 			assertLinesMatch(expectedSubscribeLogs, log, "subscribe logs")
 			log.clear()
@@ -310,9 +318,9 @@ class TemplateFileProviderTest {
 			provider.onResourceChange("file:///sub/folder/notes.txt")
 			advanceUntilIdle()
 
-			val expectedNotificationLogs = logLines {
-				serverOutgoing("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file:///sub/folder/notes.txt"}}""")
-				clientIncoming("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file:///sub/folder/notes.txt"}}""")
+			val expectedNotificationLogs = buildLog {
+				addServerOutgoing("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file:///sub/folder/notes.txt"}}""")
+				addClientIncoming("""{"method":"notifications/resources/updated","jsonrpc":"2.0","params":{"uri":"file:///sub/folder/notes.txt"}}""")
 			}
 			assertLinesMatch(expectedNotificationLogs, log, "resources/updated notification logs")
 			log.clear()
@@ -329,11 +337,11 @@ class TemplateFileProviderTest {
 			val unsubResult = unsubReq.result?.deserializeResult<EmptyResult>()
 			assertNotNull(unsubResult, "Expected an EmptyResult from unsubscribe")
 
-			val expectedUnsubscribeLogs = logLines {
-				clientOutgoing("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"7","params":{"uri":"file:///sub/folder/notes.txt"}}""")
-				serverIncoming("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"7","params":{"uri":"file:///sub/folder/notes.txt"}}""")
-				serverOutgoing("""{"jsonrpc":"2.0","id":"7","result":{}}""")
-				clientIncoming("""{"jsonrpc":"2.0","id":"7","result":{}}""")
+			val expectedUnsubscribeLogs = buildLog {
+				addClientOutgoing("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"7","params":{"uri":"file:///sub/folder/notes.txt"}}""")
+				addServerIncoming("""{"method":"resources/unsubscribe","jsonrpc":"2.0","id":"7","params":{"uri":"file:///sub/folder/notes.txt"}}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"7","result":{}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"7","result":{}}""")
 			}
 			assertLinesMatch(expectedUnsubscribeLogs, log, "unsubscribe logs")
 			log.clear()
@@ -392,7 +400,10 @@ class TemplateFileProviderTest {
 
 			val server = Server.Builder()
 				.withDispatcher(dispatcher)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.withTransport(serverTransport)
 				.withPageSize(1) // Force 1 template per page
 				.withResourceProvider(providerA)
@@ -405,7 +416,10 @@ class TemplateFileProviderTest {
 			val client = Client.Builder()
 				.withTransport(clientTransport)
 				.withDispatcher(dispatcher)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -437,42 +451,42 @@ class TemplateFileProviderTest {
 				"Should see all 3 named templates in the result",
 			)
 
-			val expectedLogs = logLines {
+			val expectedLogs = buildLog {
 				// 1st page
-				clientOutgoing("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"2"}""")
-				serverIncoming("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"2"}""")
-				serverOutgoing(
+				addClientOutgoing("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"2"}""")
+				addServerIncoming("""{"method":"resources/templates/list","jsonrpc":"2.0","id":"2"}""")
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"2","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template A","description":"Allows reading files from /rootA"}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6MX0="}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"2","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template A","description":"Allows reading files from /rootA"}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6MX0="}}""",
 				)
 
 				// 2nd page
-				clientOutgoing(
+				addClientOutgoing(
 					"""{"method":"resources/templates/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6MX0="}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"resources/templates/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6MX0="}}""",
 				)
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"3","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template B","description":"Allows reading files from /rootB"}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6MX0="}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"3","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template B","description":"Allows reading files from /rootB"}],"nextCursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6MX0="}}""",
 				)
 
 				// 3rd page
-				clientOutgoing(
+				addClientOutgoing(
 					"""{"method":"resources/templates/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6MX0="}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"resources/templates/list","jsonrpc":"2.0","id":"4","params":{"cursor":"eyJwYWdlIjoyLCJwYWdlU2l6ZSI6MX0="}}""",
 				)
-				serverOutgoing(
+				addServerOutgoing(
 					"""{"jsonrpc":"2.0","id":"4","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template C","description":"Allows reading files from /rootC"}]}}""",
 				)
-				clientIncoming(
+				addClientIncoming(
 					"""{"jsonrpc":"2.0","id":"4","result":{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"Template C","description":"Allows reading files from /rootC"}]}}""",
 				)
 			}

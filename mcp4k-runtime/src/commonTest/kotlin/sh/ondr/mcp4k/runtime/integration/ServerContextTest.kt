@@ -6,8 +6,9 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import sh.ondr.mcp4k.assertLinesMatch
-import sh.ondr.mcp4k.client
-import sh.ondr.mcp4k.logLines
+import sh.ondr.mcp4k.buildLog
+import sh.ondr.mcp4k.clientIncoming
+import sh.ondr.mcp4k.clientOutgoing
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.ServerContext
@@ -21,7 +22,8 @@ import sh.ondr.mcp4k.schema.core.JsonRpcResponse
 import sh.ondr.mcp4k.schema.tools.CallToolRequest
 import sh.ondr.mcp4k.schema.tools.CallToolRequest.CallToolParams
 import sh.ondr.mcp4k.schema.tools.CallToolResult
-import sh.ondr.mcp4k.server
+import sh.ondr.mcp4k.serverIncoming
+import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -73,7 +75,10 @@ class ServerContextTest {
 				.withContext(remoteService) // <--- Pass in the context
 				.withTool(Server::storeValueInContext) // <--- Register our tool that uses the context
 				.withTransport(serverTransport)
-				.withLogger { line -> log.server(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
 				.build()
 			server.start()
 
@@ -81,7 +86,10 @@ class ServerContextTest {
 			val client = Client.Builder()
 				.withDispatcher(testDispatcher)
 				.withTransport(clientTransport)
-				.withLogger { line -> log.client(line) }
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
 				.withClientInfo("TestClient", "1.0.0")
 				.build()
 			client.start()
@@ -116,15 +124,15 @@ class ServerContextTest {
 			assertEquals("Value stored: Hello, context!", text)
 
 			// 9) Optionally verify logs
-			val expectedLogs = logLines {
-				clientOutgoing(
+			val expectedLogs = buildLog {
+				addClientOutgoing(
 					"""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"storeValueInContext","arguments":{"newValue":"Hello, context!"}}}""",
 				)
-				serverIncoming(
+				addServerIncoming(
 					"""{"method":"tools/call","jsonrpc":"2.0","id":"2","params":{"name":"storeValueInContext","arguments":{"newValue":"Hello, context!"}}}""",
 				)
-				serverOutgoing("""{"jsonrpc":"2.0","id":"2","result":{"content":[{"type":"text","text":"Value stored: Hello, context!"}]}}""")
-				clientIncoming("""{"jsonrpc":"2.0","id":"2","result":{"content":[{"type":"text","text":"Value stored: Hello, context!"}]}}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"2","result":{"content":[{"type":"text","text":"Value stored: Hello, context!"}]}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"2","result":{"content":[{"type":"text","text":"Value stored: Hello, context!"}]}}""")
 			}
 			assertLinesMatch(expectedLogs, log, "Check logs for context-based tool usage")
 		}

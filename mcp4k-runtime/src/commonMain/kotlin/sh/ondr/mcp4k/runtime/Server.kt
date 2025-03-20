@@ -63,13 +63,16 @@ import kotlin.reflect.KFunction
  * Example usage:
  * ```kotlin
  * val server = Server.Builder()
- *     .withLogger { line -> println(line) }
  *     .withPageSize(25)
  *     .withPrompt(::myPromptFunction)
  *     .withResourceProvider(myLocalFileProvider)
  *     .withServerInfo("MyServer", "1.0.0")
  *     .withTool(::myToolFunction)
  *     .withTransport(myTransport)
+ *     .withTransportLogger(
+ *       logIncoming = { msg -> println("SERVER INCOMING: $msg") },
+ *       logOutgoing = { msg -> println("SERVER OUTGOING: $msg") },
+ *     )
  *     .build()
  *
  * server.start()
@@ -83,7 +86,8 @@ class Server private constructor(
 	@PublishedApi
 	internal val serverContext: ServerContext?,
 	private val dispatcher: CoroutineContext,
-	private val logger: suspend (String) -> Unit,
+	private val logIncoming: suspend (String) -> Unit,
+	private val logOutgoing: suspend (String) -> Unit,
 	private val pageSize: Int,
 	private val prompts: MutableList<String>,
 	private val serverName: String,
@@ -92,7 +96,8 @@ class Server private constructor(
 	private val transport: Transport,
 ) : McpComponent(
 		transport = transport,
-		logger = logger,
+		logIncoming = logIncoming,
+		logOutgoing = logOutgoing,
 		coroutineContext = dispatcher,
 	) {
 	inline fun <reified T> getContextAs(): T = serverContext as T
@@ -323,13 +328,16 @@ class Server private constructor(
 	 * Example:
 	 * ```kotlin
 	 * val server = Server.Builder()
-	 *     .withLogger { line -> println(line) }
 	 *     .withPageSize(25)
 	 *     .withPrompt(::myPromptFunction)
 	 *     .withResourceProvider(myLocalFileProvider)
 	 *     .withServerInfo("MyServer", "1.0.0")
 	 *     .withTool(::myToolFunction)
 	 *     .withTransport(myTransport)
+	 *     .withTransportLogger(
+	 *       logIncoming = { msg -> println("SERVER INCOMING: $msg") },
+	 *       logOutgoing = { msg -> println("SERVER OUTGOING: $msg") },
+	 *     )
 	 *     .build()
 	 *
 	 * server.start()
@@ -338,7 +346,8 @@ class Server private constructor(
 	class Builder {
 		private var builderContext: ServerContext? = null
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
-		private var builderLogger: suspend (String) -> Unit = {}
+		private var builderLogIncoming: suspend (String) -> Unit = {}
+		private var builderLogOutgoing: suspend (String) -> Unit = {}
 		private var builderPageSize: Int = 20
 		private val builderPrompts = mutableSetOf<String>()
 		private val builderResourceProviders = mutableListOf<ResourceProvider>()
@@ -363,12 +372,18 @@ class Server private constructor(
 			}
 
 		/**
-		 * Adds a logger callback for incoming/outgoing messages.
+		 * Sets separate loggers for incoming and outgoing transport messages.
+		 *
+		 * @param logIncoming Logger for incoming transport messages
+		 * @param logOutgoing Logger for outgoing transport messages
 		 */
-		fun withLogger(logger: suspend (String) -> Unit) =
-			apply {
-				builderLogger = logger
-			}
+		fun withTransportLogger(
+			logIncoming: suspend (String) -> Unit = {},
+			logOutgoing: suspend (String) -> Unit = {},
+		) = apply {
+			builderLogIncoming = logIncoming
+			builderLogOutgoing = logOutgoing
+		}
 
 		/**
 		 * Sets the default page size for paginated responses.
@@ -461,7 +476,8 @@ class Server private constructor(
 				builderResourceProviders = builderResourceProviders.toList(),
 				serverContext = builderContext,
 				dispatcher = builderDispatcher,
-				logger = builderLogger,
+				logIncoming = builderLogIncoming,
+				logOutgoing = builderLogOutgoing,
 				pageSize = builderPageSize,
 				prompts = builderPrompts.toMutableList(),
 				serverName = builderServerName,
