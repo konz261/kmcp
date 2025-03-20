@@ -1,4 +1,3 @@
-
 <p align="center">
   <img src="./mcp4k.svg" alt="mcp4k banner">
 </p>
@@ -12,10 +11,45 @@
   </a>
 </p>
 
+<b>mcp4k</b> is a compiler-driven framework for building both <b>clients and servers</b> using the
+<a href="https://modelcontextprotocol.io">Model Context Protocol</a> (MCP) in Kotlin.
+It implements the vast majority of the MCP specification, including resources, prompts, tools, sampling, and more.
 
-mcp4k is a compiler-driven framework that handles all the [Model Context Protocol](https://modelcontextprotocol.io) details behind the scenes. 
+By annotating your functions with ```@McpTool``` or ```@McpPrompt```,
+mcp4k automatically generates JSON-RPC handlers, schema metadata, and a complete lifecycle framework for you.
 
-You just annotate your functions and mcp4k takes care of JSON-RPC messages, schema generation and protocol lifecycle:
+---
+
+## Overview
+
+- **Client**: Connects to any MCP server to request prompts, read resources, or invoke tools.
+- **Server**: Exposes resources, prompts, and tools to MCP-compatible clients, handling standard JSON-RPC messages and protocol events.
+- **Transports**: Supports `stdio`, with HTTP-SSE and other transports on the roadmap.
+- **Lifecycle**: Manages initialization, cancellation, sampling, progress tracking, and more.
+
+mcp4k goes beyond simple stubs: it also enforces correct parameter typing at compile time.
+If you describe a tool parameter incorrectly, you get a compile-time error instead of a runtime mismatch.
+
+---
+
+## Installation
+
+Add mcp4k to your build:
+
+```kotlin
+plugins {
+  kotlin("multiplatform") version "2.1.0" // or kotlin("jvm")
+  kotlin("plugin.serialization") version "2.1.0"
+
+  id("sh.ondr.mcp4k") version "0.3.6" // <-- Add this
+}
+```
+
+---
+
+## Quick Start
+
+### Create a Simple Server
 
 ```kotlin
 /**
@@ -24,51 +58,77 @@ You just annotate your functions and mcp4k takes care of JSON-RPC messages, sche
  * @param input The string to be reversed
  */
 @McpTool
-fun reverseString(input: String) =
-  "Reversed: ${input.reversed()}".toTextContent()
+fun reverseString(input: String): ToolContent {
+  return "Reversed: ${input.reversed()}".toTextContent()
+}
 
 fun main() = runBlocking {
   val server = Server.Builder()
     .withTool(::reverseString)
     .withTransport(StdioTransport())
     .build()
-
+    
   server.start()
-
-  // Keep server running
-  while (true) {
+  
+  // Keep server running 
+  while (true) { 
     delay(1000)
   }
 }
 ```
 
-That’s it! To use the above tool in Claude Desktop (or any other MCP-compatible client), add the compiled binary to your configuration file.
+In this example, your new ```@McpTool``` is exposed via JSON-RPC as ```reverseString```.
+Clients can call it by sending ```tools/call``` messages.
 
-mcp4k will do the following for you:
-- Generate the required JSON schemas (including tool and parameter descriptions)
-- Handle incoming tool requests
-- Convert thrown Kotlin exceptions to MCP error codes 
+---
 
-For instance, if this tool received an invalid parameter (like passing a number when a string is expected), it would respond with a `-32602 (INVALID_PARAMS)` code. The same is true in case an `IllegalArgumentException` (or any other exception) is thrown from inside a tool function — mcp4k will catch it and map exceptions according to the protocol.
-<br>
-
-
-
-# Installation
-
-Add the mcp4k plugin to your multiplatform (or jvm) project:
+### Create a Simple Client
 
 ```kotlin
-plugins {
-  kotlin("multiplatform") version "2.1.0" // or kotlin("jvm")
-  kotlin("plugin.serialization") version "2.1.0"
+fun main() = runBlocking {
+  val client = Client.Builder()
+    .withClientInfo("MyClient", "1.0.0")
+    .withTransport(StdioTransport())
+    .build()
+    
+  // Connect to a MCP server using the supplied transport
+  client.start()
+  client.initialize()
   
-  id("sh.ondr.mcp4k") version "0.3.5" // <-- Add this
+  // For example, list available tools using pagination
+  val allTools = mutableListOf<Tool>()
+  var pageCount = 0
+  
+  client.fetchPagesAsFlow(ListToolsRequest).collect { pageOfTools ->
+    pageCount++
+    allTools += pageOfTools
+  }
+  println("Server tools = ${allTools}")
 }
 ```
 
+Once connected, the client can discover prompts/tools/resources and make calls according to the MCP spec.
+All boilerplate (capability negotiation, JSON-RPC ID handling, etc.) is handled by mcp4k.
 
-# Examples
+---
+
+## Transport Logging
+
+You can observe raw incoming/outgoing messages by providing ```withTransportLogger``` lambdas:
+
+```kotlin
+val server = Server.Builder()
+  .withTransport(StdioTransport())
+  .withTransportLogger(
+    logIncoming = { msg -> println("SERVER INCOMING: $msg") },
+    logOutgoing = { msg -> println("SERVER OUTGOING: $msg") },
+  )
+  .build()
+```
+
+Both ```Server``` and ```Client``` accept this configuration. Super useful for debugging and tests.
+
+---
 
 ## Tools
 
@@ -158,11 +218,11 @@ KDoc parameter descriptions are type-safe and will throw a compile-time error if
 
 Clients can now send a `tools/call` request with a JSON object describing the above schema. Invocation and type-safe deserialization will be handled by mcp4k.
 
-<br>
+---
 
 ## Prompts
 
-Annotate functions with `@McpPrompt` and return a `GetPromptResult`. Arguments must be Strings:
+Annotate functions with ```@McpPrompt``` to define parameterized conversation templates:
 
 ```kotlin
 @McpPrompt
@@ -172,7 +232,9 @@ fun codeReviewPrompt(code: String) = buildPrompt {
 }
 ```
 
-<br>
+Clients can call ```prompts/get``` to retrieve the underlying messages.
+
+---
 
 ## Server Context
 
@@ -209,7 +271,7 @@ fun main() = runBlocking {
     .withTool(Server::greetUser)
     .withTransport(StdioTransport())
     .build()
-
+  
   server.start()
   while(true) {
     delay(1000)
@@ -217,25 +279,14 @@ fun main() = runBlocking {
 }
 ```
 
-<br>
+1) Pass it in with ```.withContext(MyServerContext())```
+2) Each tool or prompt can access it by calling ```getContextAs()```
+
+---
 
 ## Resources
 
 Resources are provided by a `ResourceProvider`. You can either create your own `ResourceProvider` or use one of the 2 default implementations:
-- `DiscreteFileProvider`
-  - Let's you add/remove a discrete set of files that will be exposed to the client.
-  - Handles `resources/list` requests.
-  - Handles `resources/read` requests by reading contents from disk via `okio`.
-  - Sends `notifications/resources/list_changed` when files are added or removed.
-  - Supports subscriptions (but changes to files have to be marked manually for now).
-
-- `TemplateFileProvider`
-  - Exposes a given `rootDir` through a URI template.
-  - Handles `resources/templates/list`.
-  - Handles `resources/read` requests by reading contents from disk via `okio`.
-  - Supports subscriptions (but changes to files have to be marked manually for now).
-
-**Use those providers only in a sand-boxed environment. They are NOT production-ready.**
 
 ### DiscreteFileProvider
 
@@ -381,7 +432,9 @@ templateFileProvider.onResourceChange("cpp/my_program.h")
 ```
 to trigger the notification in case a client is subscribed to this resource.
 
-<br>
+**Use those FileProviders only in a sand-boxed environment, they are NOT production-ready.**
+
+---
 
 ## Sampling
 
@@ -419,11 +472,11 @@ runBlocking {
 }
 ```
 
-<br>
+---
 
 ## Request Cancellations
 
-mcp4k uses Kotlin coroutines for cooperative cancellation. For example, suppose you have a long-running tool operation on the server:
+mcp4k uses Kotlin coroutines for cooperative cancellation. For example, a long-running server tool:
 
 ```kotlin
 @McpTool
@@ -431,11 +484,11 @@ suspend fun slowToolOperation(iterations: Int = 10): ToolContent {
   for (i in 1..iterations) {
     delay(1000)
   }
-  return "Operation completed successfully after $iterations iterations".toTextContent()
+  return "Operation completed after $iterations".toTextContent()
 }
 ```
 
-From the client side, after you invoked the tool, you can simply cancel the coroutine job:
+The client can cancel mid-operation:
 
 ```kotlin
 val requestJob = launch {
@@ -449,15 +502,11 @@ val requestJob = launch {
     )
   }
 }
-
-// Let the server do partial work
 delay(600)
-
-// Now cancel
 requestJob.cancel("User doesn't want to wait anymore")
 ```
 
-Under the hood, mcp4k automatically sends a JSON-RPC notifications/cancelled message to the server, and your suspended tool operation will be aborted:
+Under the hood, mcp4k sends a notification to the server:
 ```json
 {
   "method": "notifications/cancelled",
@@ -468,41 +517,44 @@ Under the hood, mcp4k automatically sends a JSON-RPC notifications/cancelled mes
   }
 }
 ```
+and the server will abort the suspended tool operation.
 
-This gives you straightforward cancellations across the entire client-server flow.
+---
 
-## TODO
+## Roadmap
+
 ```
 ✅ Add resource capability
-✅ Suspendable logger, @McpTool and @McpPrompt functions
+✅ @McpTool and @McpPrompt functions
 ✅ Request cancellations
 ✅ Pagination
 ✅ Sampling (client-side)
 ✅ Roots
+✅ Transport logging
 ⬜ Completions
 ⬜ Support logging levels
 ⬜ Proper version negotiation
 ⬜ Emit progress notifications from @McpTool functions
 ⬜ Proper MIME detection
-⬜ Add FileWatcher to automate resources/updated nofications
+⬜ Add FileWatcher to automate resources/updated notifications
 ⬜ HTTP-SSE transport
 ⬜ Add references, property descriptions and validation keywords to the JSON schemas
 ```
 
-<br>
+---
 
 ## How mcp4k Works
 
-- Annotated `@McpTool` and `@McpPrompt` functions are processed at compile time.
-- mcp4k generates schemas, handlers, and registrations automatically.
-- Generated code is injected during the IR phase.
-- If you mess something up, you (hopefully) get a compile-time error.
+- Annotated ```@McpTool``` and ```@McpPrompt``` functions are processed at compile time.
+- mcp4k generates JSON schemas, request handlers, and registration code automatically.
+- Generated code is injected during Kotlin's IR compilation phase, guaranteeing type-safe usage.
+- If your KDoc references unknown parameters, the build fails, forcing you to keep docs in sync with code.
 
-
-<br>
+---
 
 ## Contributing
-Issues and pull requests are welcome.
 
-## License
-Licensed under the [Apache License 2.0](./LICENSE).
+Issues and pull requests are welcome!
+Feel free to open a discussion or contribute improvements.
+
+**License**: mcp4k is available under the [Apache License 2.0](./LICENSE).
