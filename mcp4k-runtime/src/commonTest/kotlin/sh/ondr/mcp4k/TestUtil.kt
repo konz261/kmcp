@@ -65,7 +65,7 @@ fun assertLinesMatch(
 		if (expected[i] != actual[i]) {
 			// Found mismatch
 			val sb = StringBuilder()
-			sb.append("Line $i does not match$prefix.\n")
+			sb.append("line[$i] does not match$prefix.\n")
 			sb.append("Expected: ${expected[i]}\n")
 			sb.append("Actual:   ${actual[i]}\n\n")
 			sb.append("Full expected lines:\n")
