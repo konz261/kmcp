@@ -32,6 +32,7 @@ import sh.ondr.mcp4k.schema.roots.RootsListChangedNotification
 import sh.ondr.mcp4k.schema.sampling.CreateMessageRequest.CreateMessageParams
 import sh.ondr.mcp4k.schema.sampling.CreateMessageResult
 import sh.ondr.mcp4k.schema.tools.ListToolsRequest
+import sh.ondr.mcp4k.schema.tools.Tool
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -116,54 +117,22 @@ class Client private constructor(
 	fun isInitialized(): Boolean = initialized
 
 	/**
-	 * Repeatedly calls a paginated [endpoint], emitting one set of [ITEMS] per page
-	 * until [PaginatedResult.nextCursor] is `null` or an error is thrown.
-	 *
-	 * **Usage**:
-	 * ```
-	 * // Example: Fetch all prompt pages
-	 * val allPrompts = mutableListOf<Prompt>()
-	 * client.fetchPagesAsFlow(ListPromptsRequest)
-	 *     .collect { prompts ->
-	 *         println("Received page with ${prompts.size} prompts")
-	 *         allPrompts += prompts
-	 *     }
-	 * ```
-	 *
-	 * In practice, [endpoint] can be one of the following:
-	 * - [ListPromptsRequest]
-	 * - [ListToolsRequest]
-	 * - [ListResourcesRequest]
-	 * - [ListResourceTemplatesRequest]
-	 *
-	 * @param endpoint A [PaginatedEndpoint] describing how to build requests and transform results.
-	 * @return A [Flow] that emits one [ITEMS] instance per page.
+	 * Fetches all available tools from the server using pagination.
 	 */
-	inline fun <REQ : JsonRpcRequest, reified RES : PaginatedResult, ITEMS> fetchPagesAsFlow(
-		endpoint: PaginatedEndpoint<REQ, RES, ITEMS>,
-	): Flow<ITEMS> =
-		flow {
-			var cursor: String? = null
-			do {
-				val response = sendRequest { realId ->
-					endpoint.requestFactory.create(realId, cursor)
-				}
+	suspend fun getAllTools(): List<Tool> {
+		val allTools = mutableListOf<Tool>()
 
-				response.error?.let { error ->
-					throw IllegalStateException(
-						"Server error (code=${error.code}): ${error.message}",
-					)
-				}
-				val result = response.result
-					?.deserializeResult<RES>()
-					?: error("Null or invalid result from server.")
-
-				val items = endpoint.transform(result)
-				emit(items)
-
-				cursor = result.nextCursor
-			} while (cursor != null)
+		// List available tools using pagination
+		fetchPagesAsFlow(ListToolsRequest).collect { pageOfTools ->
+			allTools += pageOfTools
 		}
+		return allTools
+	}
+
+	override suspend fun handleToolListChangedNotification() {
+		val tools = getAllTools()
+		onToolsChanged(tools)
+	}
 
 	/**
 	 * Adds a [Root] to the client. If a root with the same name or uri already exists, it will not be added.
@@ -224,6 +193,17 @@ class Client private constructor(
 		return removed
 	}
 
+	override suspend fun handleListRootsRequest(): ListRootsResult {
+		if (clientCapabilities.roots == null) {
+			// Should always be present, just in case we adhere to spec and respond with -32601 (Method not found)
+			throw MethodNotFoundException("Client does not support roots")
+		}
+
+		return ListRootsResult(
+			roots = roots.toList(),
+		)
+	}
+
 	override suspend fun handleCreateMessageRequest(params: CreateMessageParams): CreateMessageResult {
 		val approved = permissionCallback(params)
 		if (!approved) {
@@ -240,16 +220,55 @@ class Client private constructor(
 		}
 	}
 
-	override suspend fun handleListRootsRequest(): ListRootsResult {
-		if (clientCapabilities.roots == null) {
-			// Should always be present, just in case we adhere to spec and respond with -32601 (Method not found)
-			throw MethodNotFoundException("Client does not support roots")
-		}
+	/**
+	 * Repeatedly calls a paginated [endpoint], emitting one set of [ITEMS] per page
+	 * until [PaginatedResult.nextCursor] is `null` or an error is thrown.
+	 *
+	 * **Usage**:
+	 * ```
+	 * // Example: Fetch all prompt pages
+	 * val allPrompts = mutableListOf<Prompt>()
+	 * client.fetchPagesAsFlow(ListPromptsRequest)
+	 *     .collect { prompts ->
+	 *         println("Received page with ${prompts.size} prompts")
+	 *         allPrompts += prompts
+	 *     }
+	 * ```
+	 *
+	 * In practice, [endpoint] can be one of the following:
+	 * - [ListPromptsRequest]
+	 * - [ListToolsRequest]
+	 * - [ListResourcesRequest]
+	 * - [ListResourceTemplatesRequest]
+	 *
+	 * @param endpoint A [PaginatedEndpoint] describing how to build requests and transform results.
+	 * @return A [Flow] that emits one [ITEMS] instance per page.
+	 */
+	inline fun <REQ : JsonRpcRequest, reified RES : PaginatedResult, ITEMS> fetchPagesAsFlow(
+		endpoint: PaginatedEndpoint<REQ, RES, ITEMS>,
+	): Flow<ITEMS> =
+		flow {
+			var cursor: String? = null
+			do {
+				val response = sendRequest { realId ->
+					endpoint.requestFactory.create(realId, cursor)
+				}
 
-		return ListRootsResult(
-			roots = roots.toList(),
-		)
-	}
+				response.error?.let { error ->
+					throw IllegalStateException(
+						"Server error (code=${error.code}): ${error.message}",
+					)
+				}
+				val result = response.result
+					?.deserializeResult<RES>()
+					?: error("Null or invalid result from server.")
+
+				val items = endpoint.transform(result)
+				emit(items)
+
+				cursor = result.nextCursor
+			} while (cursor != null)
+		}
 
 	/**
 	 * Builder for creating a [Client] instance.

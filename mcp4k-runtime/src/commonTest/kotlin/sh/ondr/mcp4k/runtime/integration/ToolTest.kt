@@ -158,6 +158,82 @@ class ToolsTest {
 
 	@OptIn(ExperimentalCoroutinesApi::class)
 	@Test
+	fun testToolsListSimple() =
+		runTest {
+			val testDispatcher = StandardTestDispatcher(testScheduler)
+			val log = mutableListOf<String>()
+
+			val serverTransport = ChannelTransport()
+			val clientTransport = serverTransport.flip()
+
+			val server = Server.Builder()
+				.withDispatcher(testDispatcher)
+				.withPageSize(2)
+				.withTools(
+					Server::greet,
+					::sendEmail,
+					::reverseString,
+					::noParamTool,
+				)
+				.withTransport(serverTransport)
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
+				.build()
+			server.start()
+
+			val client = Client.Builder()
+				.withTransport(clientTransport)
+				.withDispatcher(testDispatcher)
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
+				.withClientInfo("TestClient", "1.0.0")
+				.build()
+			client.start()
+
+			// Perform initialization
+			client.initialize()
+			advanceUntilIdle()
+			log.clear()
+
+			// Use the helper function that internally does the pagination
+			val allTools = client.getAllTools()
+			advanceUntilIdle()
+
+			// We know there are 4 tools total, with pageSize=2 => 2 pages.
+			// The 'getAllTools' helper should retrieve all of them.
+			assertEquals(4, allTools.size, "Expected a total of 4 tools")
+
+			// Verify we saw exactly two requests in the logs (one per page).
+			val expected = buildLog {
+				// 1st page
+				addClientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
+				addServerIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
+				addServerOutgoing(
+					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"Greets a user by [name], optionally specifying an [age].","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","description":"Sends an email to [recipients] with the given [email]","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"email":{"type":"object","description":"null","properties":{"title":{"type":"string","description":"The email's title"},"body":{"type":"string","description":"The email's body"}},"required":["title"]}},"required":["recipients","email"]}}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
+				)
+				addClientIncoming(
+					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"greet","description":"Greets a user by [name], optionally specifying an [age].","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name"]}},{"name":"sendEmail","description":"Sends an email to [recipients] with the given [email]","inputSchema":{"type":"object","properties":{"recipients":{"type":"array","items":{"type":"string"}},"email":{"type":"object","description":"null","properties":{"title":{"type":"string","description":"The email's title"},"body":{"type":"string","description":"The email's body"}},"required":["title"]}},"required":["recipients","email"]}}],"nextCursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""",
+				)
+
+				// 2nd page
+				addClientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
+				addServerIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"3","params":{"cursor":"eyJwYWdlIjoxLCJwYWdlU2l6ZSI6Mn0="}}""")
+				addServerOutgoing(
+					"""{"jsonrpc":"2.0","id":"3","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}},{"name":"noParamTool","inputSchema":{"type":"object","properties":{}}}]}}""",
+				)
+				addClientIncoming(
+					"""{"jsonrpc":"2.0","id":"3","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}},{"name":"noParamTool","inputSchema":{"type":"object","properties":{}}}]}}""",
+				)
+			}
+			assertLinesMatch(expected, log, "tools list (getAllTools) test")
+		}
+
+	@OptIn(ExperimentalCoroutinesApi::class)
+	@Test
 	fun testCallToolGreet() =
 		runTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
