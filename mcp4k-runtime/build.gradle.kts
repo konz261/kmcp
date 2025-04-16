@@ -30,6 +30,7 @@ kotlin {
 			dependencies {
 				implementation(libs.kotlinx.atomicfu)
 				implementation(libs.kotlinx.coroutines.core)
+				implementation(libs.kotlinx.io.core)
 				implementation(libs.square.okio)
 				implementation(libs.square.okio.fakefilesystem)
 				api(libs.kotlinx.serialization.core)
