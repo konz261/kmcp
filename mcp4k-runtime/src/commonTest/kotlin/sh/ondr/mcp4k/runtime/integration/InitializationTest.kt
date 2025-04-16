@@ -15,6 +15,7 @@ import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.annotation.McpPrompt
 import sh.ondr.mcp4k.runtime.annotation.McpTool
 import sh.ondr.mcp4k.runtime.transport.ChannelTransport
+import sh.ondr.mcp4k.schema.capabilities.InitializeResult
 import sh.ondr.mcp4k.schema.content.TextContent
 import sh.ondr.mcp4k.schema.content.ToolContent
 import sh.ondr.mcp4k.schema.core.PingRequest
@@ -25,6 +26,7 @@ import sh.ondr.mcp4k.serverIncoming
 import sh.ondr.mcp4k.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class InitializationTest {
@@ -59,9 +61,17 @@ class InitializationTest {
 				.build()
 			client.start()
 
-			client.initialize()
+			// Capture the InitializeResult
+			val initResult: InitializeResult? = client.initialize()
 			advanceUntilIdle()
 
+			// Assert the initialization result is correct
+			assertNotNull(initResult, "Initialization result was null!")
+			assertEquals("2024-11-05", initResult.protocolVersion, "MCP version mismatch")
+			assertEquals("TestServer", initResult.serverInfo.name, "Server name mismatch")
+			assertEquals("1.0.0", initResult.serverInfo.version, "Server version mismatch")
+
+			// Verify the exact message sequence over the transport
 			val expected = buildLog {
 				addClientOutgoing(
 					"""{"method":"initialize","jsonrpc":"2.0","id":"1","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{"listChanged":true}},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}""",

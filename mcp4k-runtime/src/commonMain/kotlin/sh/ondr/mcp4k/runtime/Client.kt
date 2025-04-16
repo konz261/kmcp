@@ -18,6 +18,7 @@ import sh.ondr.mcp4k.schema.capabilities.ClientCapabilities
 import sh.ondr.mcp4k.schema.capabilities.Implementation
 import sh.ondr.mcp4k.schema.capabilities.InitializeRequest
 import sh.ondr.mcp4k.schema.capabilities.InitializeRequest.InitializeParams
+import sh.ondr.mcp4k.schema.capabilities.InitializeResult
 import sh.ondr.mcp4k.schema.capabilities.InitializedNotification
 import sh.ondr.mcp4k.schema.capabilities.RootsCapability
 import sh.ondr.mcp4k.schema.core.JsonRpcRequest
@@ -83,10 +84,12 @@ class Client private constructor(
 	/**
 	 * Initiates the MCP lifecycle by sending an `initialize` request with the specified
 	 * client info and capabilities, and then sending an `initialized` notification once the server responds.
+	 * Returns an [InitializeResult] containing information about the server.
 	 *
 	 * @throws IllegalStateException if initialization fails.
+	 * @return [InitializeResult] containing information about the server.
 	 */
-	suspend fun initialize() {
+	suspend fun initialize(): InitializeResult? {
 		val response: JsonRpcResponse = sendRequest { id ->
 			InitializeRequest(
 				id = id,
@@ -109,6 +112,7 @@ class Client private constructor(
 
 		sendNotification(InitializedNotification())
 		initialized = true
+		return response.result?.deserializeResult()
 	}
 
 	/**
