@@ -68,6 +68,7 @@ class Client private constructor(
 	private val clientVersion: String,
 	private val logIncoming: suspend (String) -> Unit,
 	private val logOutgoing: suspend (String) -> Unit,
+	private val onToolsChanged: suspend (List<Tool>) -> Unit = {},
 	private val permissionCallback: suspend (ClientApprovable) -> Boolean,
 	private val roots: MutableList<Root> = mutableListOf(),
 	private val samplingProvider: SamplingProvider? = null,
@@ -134,8 +135,10 @@ class Client private constructor(
 	}
 
 	override suspend fun handleToolListChangedNotification() {
-		val tools = getAllTools()
-		onToolsChanged(tools)
+		scope.launch {
+			val tools = getAllTools()
+			onToolsChanged(tools)
+		}
 	}
 
 	/**
@@ -305,6 +308,7 @@ class Client private constructor(
 		private var builderDispatcher: CoroutineContext = Dispatchers.Default
 		private var builderLogIncoming: suspend (String) -> Unit = {}
 		private var builderLogOutgoing: suspend (String) -> Unit = {}
+		private var builderOnToolsChanged: suspend (List<Tool>) -> Unit = {}
 		private var builderPermissionCallback: suspend (ClientApprovable) -> Boolean = { true }
 		private var builderRoots: MutableList<Root> = mutableListOf()
 		private var builderSamplingProvider: SamplingProvider? = null
@@ -330,6 +334,15 @@ class Client private constructor(
 		fun withDispatcher(dispatcher: CoroutineContext) =
 			apply {
 				builderDispatcher = dispatcher
+			}
+
+		/**
+		 * Callback that is triggered when the server changes the list of tools.
+		 * Useful for updating the tools when building a full client application.
+		 */
+		fun withOnToolsChanged(onToolsChanged: suspend (List<Tool>) -> Unit) =
+			apply {
+				builderOnToolsChanged = onToolsChanged
 			}
 
 		/**
@@ -408,6 +421,7 @@ class Client private constructor(
 				coroutineContext = builderDispatcher,
 				logIncoming = builderLogIncoming,
 				logOutgoing = builderLogOutgoing,
+				onToolsChanged = builderOnToolsChanged,
 				permissionCallback = builderPermissionCallback,
 				roots = builderRoots,
 				samplingProvider = builderSamplingProvider,

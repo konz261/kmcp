@@ -234,6 +234,88 @@ class ToolsTest {
 
 	@OptIn(ExperimentalCoroutinesApi::class)
 	@Test
+	fun changeToolsTest() =
+		runTest {
+			val testDispatcher = StandardTestDispatcher(testScheduler)
+			val log = mutableListOf<String>()
+			val updatedToolsSnapshots = mutableListOf<List<Tool>>()
+
+			val serverTransport = ChannelTransport()
+			val clientTransport = serverTransport.flip()
+
+			val server = Server.Builder()
+				.withDispatcher(testDispatcher)
+				.withTransport(serverTransport)
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(serverIncoming(msg)) },
+					logOutgoing = { msg -> log.add(serverOutgoing(msg)) },
+				)
+				.build()
+			server.start()
+
+			val client = Client.Builder()
+				.withDispatcher(testDispatcher)
+				.withTransport(clientTransport)
+				.withClientInfo("TestClient", "1.0.0")
+				.withTransportLogger(
+					logIncoming = { msg -> log.add(clientIncoming(msg)) },
+					logOutgoing = { msg -> log.add(clientOutgoing(msg)) },
+				)
+				.withOnToolsChanged { newTools ->
+					updatedToolsSnapshots += newTools
+				}
+				.build()
+			client.start()
+
+			// Initialize
+			client.initialize()
+			advanceUntilIdle()
+			log.clear()
+
+			// Add tool
+			server.addTool(::reverseString)
+			advanceUntilIdle()
+
+			// Remove tool
+			server.removeTool(::reverseString)
+			advanceUntilIdle()
+
+			// Check updatedTools callback
+			assertEquals(2, updatedToolsSnapshots.size, "Expected exactly two updates")
+			val firstUpdate = updatedToolsSnapshots[0]
+			assertEquals(1, firstUpdate.size, "First update should contain one tool")
+			assertEquals("reverseString", firstUpdate[0].name)
+
+			val secondUpdate = updatedToolsSnapshots[1]
+			assertEquals(0, secondUpdate.size, "Second update should be empty after removal")
+
+			// Check raw log
+			val expected = buildLog {
+				// add‑tool cycle
+				addServerOutgoing("""{"method":"notifications/tools/list_changed","jsonrpc":"2.0"}""")
+				addClientIncoming("""{"method":"notifications/tools/list_changed","jsonrpc":"2.0"}""")
+				addClientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
+				addServerIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"2"}""")
+				addServerOutgoing(
+					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}}]}}""",
+				)
+				addClientIncoming(
+					"""{"jsonrpc":"2.0","id":"2","result":{"tools":[{"name":"reverseString","description":"Reverses a given string [s].","inputSchema":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"]}}]}}""",
+				)
+
+				// remove‑tool cycle
+				addServerOutgoing("""{"method":"notifications/tools/list_changed","jsonrpc":"2.0"}""")
+				addClientIncoming("""{"method":"notifications/tools/list_changed","jsonrpc":"2.0"}""")
+				addClientOutgoing("""{"method":"tools/list","jsonrpc":"2.0","id":"3"}""")
+				addServerIncoming("""{"method":"tools/list","jsonrpc":"2.0","id":"3"}""")
+				addServerOutgoing("""{"jsonrpc":"2.0","id":"3","result":{"tools":[]}}""")
+				addClientIncoming("""{"jsonrpc":"2.0","id":"3","result":{"tools":[]}}""")
+			}
+			assertLinesMatch(expected, log, "changeToolsTest log check")
+		}
+
+	@OptIn(ExperimentalCoroutinesApi::class)
+	@Test
 	fun testCallToolGreet() =
 		runTest {
 			val testDispatcher = StandardTestDispatcher(testScheduler)
