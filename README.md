@@ -15,8 +15,7 @@
 <a href="https://modelcontextprotocol.io">Model Context Protocol</a> (MCP) in Kotlin.
 It implements the vast majority of the MCP specification, including resources, prompts, tools, sampling, and more.
 
-By annotating your functions with ```@McpTool``` or ```@McpPrompt```,
-mcp4k automatically generates JSON-RPC handlers, schema metadata, and a complete lifecycle framework for you.
+mcp4k automatically generates JSON-RPC handlers, schema metadata, and manages the complete lifecycle for you.
 
 ---
 
@@ -24,10 +23,10 @@ mcp4k automatically generates JSON-RPC handlers, schema metadata, and a complete
 
 - **Client**: Connects to any MCP server to request prompts, read resources, or invoke tools.
 - **Server**: Exposes resources, prompts, and tools to MCP-compatible clients, handling standard JSON-RPC messages and protocol events.
-- **Transports**: Supports `stdio`, with HTTP-SSE and other transports on the roadmap.
+- **Transports**: Supports `stdio`, with HTTP-Streaming and other transports on the roadmap.
 - **Lifecycle**: Manages initialization, cancellation, sampling, progress tracking, and more.
 
-mcp4k goes beyond simple stubs: it also enforces correct parameter typing at compile time.
+mcp4k also enforces correct parameter typing at compile time.
 If you describe a tool parameter incorrectly, you get a compile-time error instead of a runtime mismatch.
 
 ---
@@ -41,7 +40,7 @@ plugins {
   kotlin("multiplatform") version "2.1.0" // or kotlin("jvm")
   kotlin("plugin.serialization") version "2.1.0"
 
-  id("sh.ondr.mcp4k") version "0.3.6" // <-- Add this
+  id("sh.ondr.mcp4k") version "0.4.0" // <-- Add this
 }
 ```
 
@@ -90,25 +89,39 @@ fun main() = runBlocking {
     .withClientInfo("MyClient", "1.0.0")
     .withTransport(StdioTransport())
     .build()
-    
-  // Connect to a MCP server using the supplied transport
+  
   client.start()
   client.initialize()
-  
-  // For example, list available tools using pagination
-  val allTools = mutableListOf<Tool>()
-  var pageCount = 0
-  
-  client.fetchPagesAsFlow(ListToolsRequest).collect { pageOfTools ->
-    pageCount++
-    allTools += pageOfTools
-  }
-  println("Server tools = ${allTools}")
 }
 ```
-
-Once connected, the client can discover prompts/tools/resources and make calls according to the MCP spec.
 All boilerplate (capability negotiation, JSON-RPC ID handling, etc.) is handled by mcp4k.
+
+Once connected, the client can discover prompts/tools/resources and make calls according to the MCP spec:
+
+```kotlin
+val allTools = client.getAllTools()
+println("Server tools = $allTools")
+
+val response = client.callTool(
+  name = "reverseString",
+  arguments = buildMap {
+    put("input", JsonPrimitive("Some string we want reversed"))
+  },
+)
+
+val result = response.result?.deserializeResult<CallToolResult>()
+println(result) // --> "desrever tnaw ew gnirts emoS"
+```
+
+If you want to get notified when the server changes its tools, you can provide a callback:
+```kotlin
+val client = Client.Builder()
+  // ...
+  .withOnToolsChanged { updatedTools: List<Tool> ->
+    println("Updated tools: $updatedTools")
+  }
+  .build()
+```
 
 ---
 
@@ -131,6 +144,8 @@ Both ```Server``` and ```Client``` accept this configuration. Super useful for d
 ---
 
 ## Tools
+
+Let's look at a more advanced tool example:
 
 ```kotlin
 @JsonSchema @Serializable
@@ -214,9 +229,25 @@ When clients call `tools/list`, they see a JSON schema describing the tool's inp
   ]
 }
 ```
-KDoc parameter descriptions are type-safe and will throw a compile-time error if you specify a non-existing property.
+KDoc parameter descriptions are type-safe and will throw a compile-time error if you specify a non-existing property. Tool call invocation and type-safe deserialization will be handled by mcp4k.
 
-Clients can now send a `tools/call` request with a JSON object describing the above schema. Invocation and type-safe deserialization will be handled by mcp4k.
+Server can also add or remove tools at runtime:
+```kotlin
+server.addTool(::sendEmail)
+// ...
+server.removeTool(::sendEmail)
+```
+
+Both calls will automatically send `ToolListChanged` notifications to the client.
+
+Tools can also be added or removed from inside tool functions if they are implemented as `Server` extension functions:
+```kotlin
+@McpTool
+fun Server.toolThatAddsSecondTool(): ToolContent {
+  addTool(::secondTool)
+  return "Second tool added!".toTextContent()
+}
+```
 
 ---
 
@@ -238,12 +269,16 @@ Clients can call ```prompts/get``` to retrieve the underlying messages.
 
 ## Server Context
 
-In some cases, you want multiple tools or prompts to share state.
+In some cases, you want multiple tools or prompts to share state.  mcp4k allows you to attach a custom **context object** that tools and prompts can reference.
 
-mcp4k allows you to attach a custom **context object** that tools and prompts can reference. For example:
+1) Create a `ServerContext` object
+2) Pass it in with ```.withContext(...)```
+3) Each tool or prompt can access it by calling ```getContextAs()```
+
+For example:
 
 ```kotlin
-// 1) Implement your custom context
+// 1) Create your context
 class MyServerContext : ServerContext {
   var userName: String = ""
 }
@@ -279,8 +314,24 @@ fun main() = runBlocking {
 }
 ```
 
-1) Pass it in with ```.withContext(MyServerContext())```
-2) Each tool or prompt can access it by calling ```getContextAs()```
+But looking at the above code, it doesn't make sense that the `greetUser` function is callable before `setUserName` has been called.
+
+Thus, we can improve the code by doing:
+```kotlin
+fun main() {
+  val server = Server.Builder()
+  // ...
+  .withTool(Server::setUserName) // only add this
+  // ...
+}
+
+@McpTool
+fun Server.setUserName(name: String): ToolContent {
+  getContextAs<MyServerContext>().userName = name
+  addTool(Server::greetUser) // Now, add greetUser
+  return "Username set to: $name".toTextContent()
+}
+```
 
 ---
 
@@ -531,13 +582,16 @@ and the server will abort the suspended tool operation.
 ✅ Sampling (client-side)
 ✅ Roots
 ✅ Transport logging
+✅ SourceSink Transport
+✅ onToolsChanged callback in Client
+⬜ Unbundle KSP to support other Kotlin versions
 ⬜ Completions
 ⬜ Support logging levels
 ⬜ Proper version negotiation
 ⬜ Emit progress notifications from @McpTool functions
 ⬜ Proper MIME detection
 ⬜ Add FileWatcher to automate resources/updated notifications
-⬜ HTTP-SSE transport
+⬜ HTTP-Streaming transport
 ⬜ Add references, property descriptions and validation keywords to the JSON schemas
 ```
 
