@@ -3,6 +3,7 @@
 package sh.ondr.mcp4k.runtime
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -53,6 +54,7 @@ import sh.ondr.mcp4k.schema.tools.CallToolRequest.CallToolParams
 import sh.ondr.mcp4k.schema.tools.CallToolResult
 import sh.ondr.mcp4k.schema.tools.ListToolsRequest.ListToolsParams
 import sh.ondr.mcp4k.schema.tools.ListToolsResult
+import sh.ondr.mcp4k.schema.tools.ToolListChangedNotification
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KFunction
 
@@ -121,27 +123,40 @@ class Server private constructor(
 	)
 
 	/**
-	 * Dynamically adds a new tool to the server at runtime.
+	 * Dynamically adds a new tool to the server at runtime and sends a [ToolListChangedNotification]
 	 *
 	 * @param tool The @McpTool-annotated function reference.
 	 * @return `true` if the tool was added, `false` if it was already present.
 	 */
-	fun addTool(tool: KFunction<*>): Boolean =
-		if (tool.name !in tools) {
+	fun addTool(tool: KFunction<*>): Boolean {
+		return if (tool.name !in tools) {
 			tools.add(tool.name)
+			scope.launch {
+				sendNotification(ToolListChangedNotification())
+			}
 			true
 		} else {
 			false
 		}
+	}
 
 	/**
-	 * Dynamically removes a previously added tool by its @McpTool-annotated function reference.
+	 * Dynamically removes a previously added tool by its @McpTool-annotated function reference and
+	 * sends a [ToolListChangedNotification]
 	 *
 	 * @param tool The @McpTool-annotated function reference that was previously added.
 	 * @return `true` if the tool was removed, `false` if it was not found.
 	 */
 	fun removeTool(tool: KFunction<*>): Boolean {
-		return tools.remove(tool.name)
+		return if (tool.name in tools) {
+			tools.remove(tool.name)
+			scope.launch {
+				sendNotification(ToolListChangedNotification())
+			}
+			true
+		} else {
+			false
+		}
 	}
 
 	/**
