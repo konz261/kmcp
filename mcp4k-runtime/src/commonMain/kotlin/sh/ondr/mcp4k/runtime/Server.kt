@@ -102,7 +102,12 @@ class Server private constructor(
 		logOutgoing = logOutgoing,
 		coroutineContext = dispatcher,
 	) {
-	inline fun <reified T> getContextAs(): T = serverContext as T
+	inline fun <reified T> getContextAs(): T =
+		runCatching {
+			serverContext as T
+		}.getOrElse {
+			throw RuntimeException("Can't retrieve server context")
+		}
 
 	/**
 	 * Manages one or more ResourceProviders, merging resource lists and
