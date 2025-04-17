@@ -34,7 +34,8 @@ import kotlin.test.assertNotNull
  * @param title The email's title
  * @param body The email's body
  */
-@Serializable @JsonSchema
+@Serializable
+@JsonSchema
 data class Email(
 	val title: String,
 	val body: String?,
@@ -352,15 +353,12 @@ class ToolsTest {
 			log.clear()
 
 			// Call the 'greet' tool
-			val response = client.sendRequest { id ->
-				CallToolRequest(
-					id = id,
-					params = CallToolRequest.CallToolParams(
-						name = "greet",
-						arguments = mapOf("name" to JsonPrimitive("Alice")),
-					),
-				)
-			}
+			val response = client.callTool(
+				name = "greet",
+				arguments = buildMap {
+					put("name", JsonPrimitive("Alice"))
+				},
+			)
 			advanceUntilIdle()
 
 			val expected = buildLog {

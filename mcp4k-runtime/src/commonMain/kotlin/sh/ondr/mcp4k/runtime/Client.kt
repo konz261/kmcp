@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.json.JsonElement
 import sh.ondr.mcp4k.runtime.core.ClientApprovable
 import sh.ondr.mcp4k.runtime.core.MCP_VERSION
 import sh.ondr.mcp4k.runtime.core.pagination.PaginatedEndpoint
@@ -32,6 +33,7 @@ import sh.ondr.mcp4k.schema.roots.Root
 import sh.ondr.mcp4k.schema.roots.RootsListChangedNotification
 import sh.ondr.mcp4k.schema.sampling.CreateMessageRequest.CreateMessageParams
 import sh.ondr.mcp4k.schema.sampling.CreateMessageResult
+import sh.ondr.mcp4k.schema.tools.CallToolRequest
 import sh.ondr.mcp4k.schema.tools.ListToolsRequest
 import sh.ondr.mcp4k.schema.tools.Tool
 import kotlin.coroutines.CoroutineContext
@@ -138,6 +140,23 @@ class Client private constructor(
 		scope.launch {
 			val tools = getAllTools()
 			onToolsChanged(tools)
+		}
+	}
+
+	suspend fun callTool(
+		name: String,
+		arguments: Map<String, JsonElement>? = null,
+		_meta: Map<String, JsonElement>? = null,
+	): JsonRpcResponse {
+		return sendRequest { id ->
+			CallToolRequest(
+				id = id,
+				params = CallToolRequest.CallToolParams(
+					name = name,
+					arguments = arguments,
+					_meta = _meta,
+				),
+			)
 		}
 	}
 
