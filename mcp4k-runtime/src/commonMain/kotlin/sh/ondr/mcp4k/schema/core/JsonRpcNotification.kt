@@ -39,15 +39,16 @@ interface NotificationParams {
  * This indicates that the result will be unused, so any associated processing SHOULD stop.
  *
  * A client MUST NOT attempt to cancel its `initialize` request.
- *
- * @property requestId The ID of the request to cancel.
- * @property reason An optional string describing the reason for cancellation.
  */
 @Serializable
 @SerialName("notifications/cancelled")
 data class CancelledNotification(
 	override val params: CancelledParams,
 ) : JsonRpcNotification() {
+	/**
+	 * @property requestId The ID of the request to cancel.
+	 * @property reason An optional string describing the reason for cancellation.
+	 */
 	@Serializable
 	data class CancelledParams(
 		val requestId: String,
