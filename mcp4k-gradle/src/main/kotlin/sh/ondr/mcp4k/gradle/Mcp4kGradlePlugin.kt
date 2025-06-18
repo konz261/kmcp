@@ -20,16 +20,16 @@ class Mcp4kGradlePlugin : KotlinCompilerPluginSupportPlugin {
 		// Immediately fail if Koja is already applied
 		if (target.plugins.hasPlugin("sh.ondr.koja")) {
 			error(
-				"Kolli plugin cannot be used together with the Koja plugin. " +
-					"Remove the 'sh.ondr.koja' plugin from your build.",
+				"The Koja plugin should not be applied separately when using mcp4k. " +
+					"Remove the 'sh.ondr.koja' plugin from your build - mcp4k will handle it automatically.",
 			)
 		}
 
 		// Or fail if Koja is applied later
 		target.pluginManager.withPlugin("sh.ondr.koja") {
 			error(
-				"Kolli plugin cannot be used together with the Koja plugin. " +
-					"Remove the 'sh.ondr.koja' plugin from your build.",
+				"The Koja plugin should not be applied separately when using mcp4k. " +
+					"Remove the 'sh.ondr.koja' plugin from your build - mcp4k will handle it automatically.",
 			)
 		}
 
@@ -45,9 +45,7 @@ class Mcp4kGradlePlugin : KotlinCompilerPluginSupportPlugin {
 			val kotlin = target.extensions.getByType(KotlinMultiplatformExtension::class.java)
 			// Add runtime to commonMain
 			kotlin.sourceSets.getByName("commonMain").dependencies {
-				if (target.name != "mcp4k-runtime") {
-					implementation(runtimeDependency)
-				}
+				implementation(runtimeDependency)
 			}
 
 			// Add KSP dependency for all Kotlin targets main compilations
@@ -88,9 +86,7 @@ class Mcp4kGradlePlugin : KotlinCompilerPluginSupportPlugin {
 			val kotlinJvm = target.extensions.getByType(org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension::class.java)
 			// Add runtime to main
 			kotlinJvm.sourceSets.getByName("main").dependencies {
-				if (target.name != "mcp4k-runtime") {
-					implementation(runtimeDependency)
-				}
+				implementation(runtimeDependency)
 			}
 
 			// Add KSP for main

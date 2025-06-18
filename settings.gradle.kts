@@ -16,6 +16,7 @@ include("mcp4k-compiler")
 include("mcp4k-gradle")
 include("mcp4k-ksp")
 include("mcp4k-runtime")
+include("mcp4k-test")
 
 includeBuild("mcp4k-build") {
 	dependencySubstitution {

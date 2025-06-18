@@ -4,7 +4,7 @@ auto-service-annotations = "1.1.1"
 build-config = "4.1.2"
 coroutines = "1.9.0"
 mcp4k = "0.2.1" # Will be substituted
-koja = "0.3.3"
+koja = "0.4.0"
 kotlin = "2.1.0"
 kotlinx-io-core = "0.7.0"
 kotlinx-serialization = "1.7.3"
@@ -25,6 +25,7 @@ spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 [libraries]
 auto-service = { module = "com.google.auto.service:auto-service", version.ref = "auto-service-annotations" }
 auto-service-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "auto-service-annotations" }
+koja-runtime = { module = "sh.ondr.koja:koja-runtime", version.ref = "koja" }
 koja-gradle = { module = "sh.ondr.koja:koja-gradle", version.ref = "koja" }
 kotlin-compiler-embeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin" }
 kotlin-gradle-api = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin-api", version.ref = "kotlin" }
