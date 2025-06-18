@@ -40,7 +40,7 @@ plugins {
   kotlin("multiplatform") version "2.1.0" // or kotlin("jvm")
   kotlin("plugin.serialization") version "2.1.0"
 
-  id("sh.ondr.mcp4k") version "0.4.0" // <-- Add this
+  id("sh.ondr.mcp4k") version "0.4.1" // <-- Add this
 }
 ```
 
@@ -584,7 +584,7 @@ and the server will abort the suspended tool operation.
 ✅ Transport logging
 ✅ SourceSink Transport
 ✅ onToolsChanged callback in Client
-⬜ Unbundle KSP to support other Kotlin versions
+⬜ Support other Kotlin versions
 ⬜ Completions
 ⬜ Support logging levels
 ⬜ Proper version negotiation
