@@ -337,153 +337,67 @@ fun Server.setUserName(name: String): ToolContent {
 
 ## Resources
 
-Resources are provided by a `ResourceProvider`. You can either create your own `ResourceProvider` or use one of the 2 default implementations:
+Resources in MCP allow servers to expose data that clients can read. The `ResourceProvider` interface is the core abstraction for implementing resource support:
 
-### DiscreteFileProvider
-
-Let's say you want to expose 2 files:
-- /app/resources/cpp/my_program.h
-- /app/resources/cpp/my_program.cpp
-
-You would first create the following provider:
 ```kotlin
-val fileProvider = DiscreteFileProvider(
-  fileSystem = FileSystem.SYSTEM,
-  rootDir = "/app/resources".toPath(),
-  initialFiles = listOf(
-    File(
-      relativePath = "cpp/my_program.h",
-      mimeType = "text/x-c++",
-    ),
-    File(
-      relativePath = "cpp/my_program.cpp",
-      mimeType = "text/x-c++",
-    ),
-  )
-)
+interface ResourceProvider {
+  suspend fun listResources(): List<Resource>
+  suspend fun readResource(uri: String): ResourceContents
+  suspend fun listResourceTemplates(): List<ResourceTemplate>
+  suspend fun subscribe(uri: String)
+  suspend fun unsubscribe(uri: String)
+  fun onResourceListChanged(callback: () -> Unit)
+  fun onResourceUpdated(callback: (uri: String) -> Unit)
+}
 ```
 
-And add it when building the server:
+You can implement this interface to expose any type of data as resources - databases, APIs, files, or any other data source.
+
+### File-Based Resource Providers
+
+For common file-based use cases, mcp4k provides ready-to-use implementations in the optional `mcp4k-file-provider` module. See the [file provider documentation](mcp4k-file-provider/README.md) for details on:
+- `DiscreteFileProvider` - Expose specific files with discrete URIs
+- `TemplateFileProvider` - Expose entire directories with URI templates
+
+### Creating Custom Resource Providers
+
+Here's a simple example of a custom resource provider:
+
+```kotlin
+class DatabaseResourceProvider : ResourceProvider {
+  override suspend fun listResources(): List<Resource> {
+    return listOf(
+      Resource(
+        uri = "db://users",
+        name = "Users Table",
+        description = "Access to user data",
+        mimeType = "application/json"
+      )
+    )
+  }
+  
+  override suspend fun readResource(uri: String): ResourceContents {
+    return when (uri) {
+      "db://users" -> ResourceContents(
+        uri = uri,
+        mimeType = "application/json",
+        text = fetchUsersAsJson()
+      )
+      else -> throw ResourceNotFoundException(uri)
+    }
+  }
+  
+  // Implement other methods as needed...
+}
+```
+
+Then add it to your server:
 ```kotlin
 val server = Server.Builder()
-  .withResourceProvider(fileProvider)
+  .withResourceProvider(DatabaseResourceProvider())
   .withTransport(StdioTransport())
   .build()
 ```
-
-A client calling `resources/list` will then receive:
-```json
-{
-  "resources": [
-    {
-      "uri": "file://cpp/my_program.h",
-      "name": "my_program.h",
-      "description": "File at cpp/my_program.h",
-      "mimeType": "text/x-c++"
-    },
-    {
-      "uri": "file://cpp/my_program.cpp",
-      "name": "my_program.cpp",
-      "description": "File at cpp/my_program.cpp",
-      "mimeType": "text/x-c++"
-    }
-  ]
-}
-```
-
-A client sending a `resources/read` request to fetch the contents of the source file would receive:
-```json
-{
-  "contents": [
-    {
-      "uri": "file://cpp/my_program.cpp",
-      "mimeType": "text/x-c++",
-      "text": "int main(){}"
-    }
-  ]
-}
-```
-
-You can also add or remove files at runtime via
-```kotlin
-fileProvider.addFile(
-  File(
-    relativePath = "cpp/README.txt",
-    mimeType = "text/plain",
-  )
-)
-
-fileProvider.removeFile("cpp/my_program.h")
-```
-
-Both `addFile` and `removeFile` will send a `notifications/resources/list_changed` notification.
-
-<br>
-
-When making changes to a file, always call
-```kotlin
-fileProvider.onResourceChange("cpp/my_program.h")
-```
-
-If (and only if) the client subscribed to this resource, this will send a `notifications/resources/updated` notification to the client.
-
-<br>
-
-### TemplateFileProvider
-
-If you want to expose a whole directory, you can do:
-```kotlin
-val templateFileProvider = TemplateFileProvider(
-  fileSystem = FileSystem.SYSTEM,
-  rootDir = "/app/resources".toPath(),
-)
-```
-
-A client calling `resources/templates/list` will receive:
-```json
-{
-  "resourceTemplates": [
-    {
-      "uriTemplate": "file:///{path}",
-      "name": "Arbitrary local file access",
-      "description": "Allows reading any file by specifying {path}"
-    }
-  ]
-}
-```
-
-The client can then issue a `resources/read` request by providing the `path`:
-```json
-{
-  "method": "resources/read",
-  "params": {
-    "uri": "file:///cpp/my_program.cpp"
-  }
-}
-```
-
-This will read from `/app/resources/cpp/my_program.cpp` and return the result:
-```json
-{
-  "contents": [
-    {
-      "uri": "file:///cpp/my_program.cpp",
-      "mimeType": "text/plain",
-      "text": "int main(){}"
-    }
-  ]
-}
-```
-
-Note the incorrect `text/plain` here - proper MIME detection will be added at some point.
-
-Similarly to `DiscreteFileProvider`, when modifying a resource, call
-```kotlin
-templateFileProvider.onResourceChange("cpp/my_program.h")
-```
-to trigger the notification in case a client is subscribed to this resource.
-
-**Use those FileProviders only in a sand-boxed environment, they are NOT production-ready.**
 
 ---
 
@@ -582,7 +496,6 @@ and the server will abort the suspended tool operation.
 ✅ Sampling (client-side)
 ✅ Roots
 ✅ Transport logging
-✅ SourceSink Transport
 ✅ onToolsChanged callback in Client
 ⬜ Support other Kotlin versions
 ⬜ Completions
