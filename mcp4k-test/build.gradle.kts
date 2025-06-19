@@ -39,6 +39,7 @@ kotlin {
 				implementation(libs.kotlinx.coroutines.test)
 				implementation(libs.square.okio)
 				implementation(libs.square.okio.fakefilesystem)
+				implementation(project(":mcp4k-file-provider"))
 			}
 		}
 	}

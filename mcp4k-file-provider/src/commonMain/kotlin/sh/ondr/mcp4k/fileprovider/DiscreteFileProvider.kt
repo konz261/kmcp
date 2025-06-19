@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalEncodingApi::class)
 
-package sh.ondr.mcp4k.runtime.resources
+package sh.ondr.mcp4k.fileprovider
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -8,6 +8,7 @@ import okio.FileSystem
 import okio.Path
 import okio.buffer
 import okio.use
+import sh.ondr.mcp4k.runtime.resources.ResourceProvider
 import sh.ondr.mcp4k.schema.resources.Resource
 import sh.ondr.mcp4k.schema.resources.ResourceContents
 import kotlin.io.encoding.Base64

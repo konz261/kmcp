@@ -6,10 +6,10 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
+import sh.ondr.mcp4k.fileprovider.DiscreteFileProvider
+import sh.ondr.mcp4k.fileprovider.File
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
-import sh.ondr.mcp4k.runtime.resources.DiscreteFileProvider
-import sh.ondr.mcp4k.runtime.resources.File
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
 import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.core.EmptyResult

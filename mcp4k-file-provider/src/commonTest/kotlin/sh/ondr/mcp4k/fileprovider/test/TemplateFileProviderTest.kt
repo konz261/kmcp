@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalCoroutinesApi::class)
 
-package sh.ondr.mcp4k.test.resources
+package sh.ondr.mcp4k.fileprovider.test
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -8,9 +8,9 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
+import sh.ondr.mcp4k.fileprovider.TemplateFileProvider
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
-import sh.ondr.mcp4k.runtime.resources.TemplateFileProvider
 import sh.ondr.mcp4k.runtime.serialization.deserializeResult
 import sh.ondr.mcp4k.runtime.transport.ChannelTransport
 import sh.ondr.mcp4k.schema.core.EmptyResult
@@ -29,12 +29,6 @@ import sh.ondr.mcp4k.schema.resources.SubscribeRequest
 import sh.ondr.mcp4k.schema.resources.SubscribeRequest.SubscribeParams
 import sh.ondr.mcp4k.schema.resources.UnsubscribeRequest
 import sh.ondr.mcp4k.schema.resources.UnsubscribeRequest.UnsubscribeParams
-import sh.ondr.mcp4k.test.assertLinesMatch
-import sh.ondr.mcp4k.test.buildLog
-import sh.ondr.mcp4k.test.clientIncoming
-import sh.ondr.mcp4k.test.clientOutgoing
-import sh.ondr.mcp4k.test.serverIncoming
-import sh.ondr.mcp4k.test.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

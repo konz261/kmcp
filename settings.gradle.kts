@@ -13,6 +13,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "mcp4k"
 include("mcp4k-compiler")
+include("mcp4k-file-provider")
 include("mcp4k-gradle")
 include("mcp4k-ksp")
 include("mcp4k-runtime")

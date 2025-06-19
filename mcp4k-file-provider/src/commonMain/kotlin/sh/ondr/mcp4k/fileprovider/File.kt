@@ -1,4 +1,4 @@
-package sh.ondr.mcp4k.runtime.resources
+package sh.ondr.mcp4k.fileprovider
 
 data class File(
 	val relativePath: String,

@@ -7,7 +7,6 @@ plugins {
 }
 
 kotlin {
-
 	iosArm64()
 	iosX64()
 	iosSimulatorArm64()
@@ -27,11 +26,18 @@ kotlin {
 	sourceSets {
 		commonMain {
 			dependencies {
-				implementation(libs.kotlinx.atomicfu)
+				api(project(":mcp4k-runtime"))
+				implementation(libs.square.okio)
 				implementation(libs.kotlinx.coroutines.core)
-				implementation(libs.kotlinx.serialization.core)
+			}
+		}
+		commonTest {
+			dependencies {
+				implementation(kotlin("test"))
+				implementation(project(":mcp4k-test"))
+				implementation(libs.kotlinx.coroutines.test)
+				implementation(libs.square.okio.fakefilesystem)
 				implementation(libs.kotlinx.serialization.json)
-				implementation(libs.koja.runtime)
 			}
 		}
 	}
