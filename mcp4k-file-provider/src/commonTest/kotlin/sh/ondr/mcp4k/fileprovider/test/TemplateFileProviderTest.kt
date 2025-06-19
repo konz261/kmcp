@@ -29,6 +29,12 @@ import sh.ondr.mcp4k.schema.resources.SubscribeRequest
 import sh.ondr.mcp4k.schema.resources.SubscribeRequest.SubscribeParams
 import sh.ondr.mcp4k.schema.resources.UnsubscribeRequest
 import sh.ondr.mcp4k.schema.resources.UnsubscribeRequest.UnsubscribeParams
+import sh.ondr.mcp4k.test.assertLinesMatch
+import sh.ondr.mcp4k.test.buildLog
+import sh.ondr.mcp4k.test.clientIncoming
+import sh.ondr.mcp4k.test.clientOutgoing
+import sh.ondr.mcp4k.test.serverIncoming
+import sh.ondr.mcp4k.test.serverOutgoing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

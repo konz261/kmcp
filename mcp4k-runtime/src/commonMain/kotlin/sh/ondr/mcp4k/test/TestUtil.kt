@@ -1,9 +1,7 @@
-package sh.ondr.mcp4k.fileprovider.test
-
-import kotlin.test.fail
+package sh.ondr.mcp4k.test
 
 /**
- * A small DSL entry point.
+ * A small DSL entry point for building expected log sequences in tests.
  *
  * Usage:
  * ```
@@ -73,7 +71,7 @@ fun assertLinesMatch(
 			sb.append("\nFull actual lines:\n")
 			actual.forEach { sb.append(" A: $it\n") }
 
-			fail(sb.toString())
+			throw AssertionError(sb.toString())
 		}
 	}
 
@@ -89,7 +87,7 @@ fun assertLinesMatch(
 		sb.append("\nFull actual lines:\n")
 		actual.forEach { sb.append(" A: $it\n") }
 
-		fail(sb.toString())
+		throw AssertionError(sb.toString())
 	}
 
 	// If we get here, all lines match exactly.
