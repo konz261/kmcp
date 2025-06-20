@@ -72,3 +72,41 @@ tasks.register("verifyPluginApplication") {
 		println("MCP4K plugin applied: ${project.plugins.hasPlugin("sh.ondr.mcp4k")}")
 	}
 }
+
+// Task to print the effective Kotlin version
+tasks.register("printKotlinVersion") {
+	doLast {
+		println("Using Kotlin version: ${libs.versions.kotlin.get()}")
+	}
+}
+
+// Task to check actual Kotlin compiler version being used
+tasks.register("checkActualKotlinVersion") {
+	doLast {
+		val kotlinPlugin = project.plugins.findPlugin("org.jetbrains.kotlin.multiplatform")
+		println("Kotlin Multiplatform Plugin Applied: ${kotlinPlugin != null}")
+		if (kotlinPlugin != null) {
+			println("Plugin Class: ${kotlinPlugin::class.java.name}")
+			// Try to access the version through the plugin
+			try {
+				val versionField = kotlinPlugin::class.java.declaredFields.find { it.name.contains("version", true) }
+				if (versionField != null) {
+					versionField.isAccessible = true
+					println("Version field: ${versionField.get(kotlinPlugin)}")
+				}
+			} catch (e: Exception) {
+				println("Could not access version field: ${e.message}")
+			}
+		}
+		
+		// Check compiler classpath
+		configurations.findByName("kotlinCompilerClasspath")?.let { config ->
+			println("\nKotlin Compiler Classpath:")
+			config.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
+				if (artifact.moduleVersion.id.group == "org.jetbrains.kotlin") {
+					println("  ${artifact.moduleVersion.id}: ${artifact.file.name}")
+				}
+			}
+		}
+	}
+}
