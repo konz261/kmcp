@@ -120,7 +120,7 @@ class Mcp4kIrTransformer(
 		call: IrCall,
 		functionName: String,
 	) {
-		val valueArguments = (0 until call.valueArgumentsCount).mapNotNull { idx -> call.getValueArgument(idx) }
+		val valueArguments = (0 until call.arguments.size).mapNotNull { idx -> call.arguments[idx] }
 
 		valueArguments.forEach { arg ->
 			when (arg) {
