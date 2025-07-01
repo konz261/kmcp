@@ -1,6 +1,5 @@
 package sh.ondr.mcp4k.compiler
 
-import com.google.auto.service.AutoService
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -11,12 +10,12 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 
 @OptIn(ExperimentalCompilerApi::class)
-@AutoService(CompilerPluginRegistrar::class)
 class Mcp4kCompilerPluginRegistrar : CompilerPluginRegistrar() {
 	override val supportsK2 = true
 
 	override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
 		val messageCollector = configuration[CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE]
+		val isTest = configuration.get(Mcp4kConfigurationKeys.IS_TEST_SET, false)
 
 		IrGenerationExtension.registerExtension(
 			object : IrGenerationExtension {
@@ -24,12 +23,11 @@ class Mcp4kCompilerPluginRegistrar : CompilerPluginRegistrar() {
 					moduleFragment: IrModuleFragment,
 					pluginContext: IrPluginContext,
 				) {
-					val moduleName = moduleFragment.descriptor.name.asStringStripSpecialMarkers()
 					moduleFragment.transform(
 						Mcp4kIrTransformer(
 							messageCollector = messageCollector,
 							pluginContext = pluginContext,
-							isTest = moduleName.endsWith("_test"),
+							isTest = isTest,
 						),
 						data = null,
 					)

@@ -6,10 +6,7 @@ fun Mcp4kProcessor.generateInitializer() {
 	val name = if (isTest) "Mcp4kTestInitializer" else "Mcp4kInitializer"
 	val mcp4kInitializerPackage = "$pkg.generated.initializer"
 	val file = codeGenerator.createNewFile(
-		dependencies = Dependencies(
-			aggregating = true,
-			sources = tools.map { it.originatingFile }.toTypedArray(),
-		),
+		dependencies = Dependencies(aggregating = true),
 		packageName = mcp4kInitializerPackage,
 		fileName = name,
 	)

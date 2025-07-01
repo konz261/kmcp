@@ -7,10 +7,7 @@ import sh.ondr.mcp4k.ksp.ParamInfo
 fun Mcp4kProcessor.generatePromptHandlersFile() {
 	val fileName = "Mcp4kGeneratedPromptHandlers"
 	val file = codeGenerator.createNewFile(
-		dependencies = Dependencies(
-			aggregating = true,
-			sources = prompts.map { it.originatingFile }.toTypedArray(),
-		),
+		dependencies = Dependencies(aggregating = true),
 		packageName = mcp4kHandlersPackage,
 		fileName = fileName,
 	)

@@ -1,12 +1,10 @@
 package sh.ondr.mcp4k.ksp
 
-import com.google.devtools.ksp.symbol.KSType
-
 data class ParamInfo(
 	val name: String,
 	val fqnType: String,
+	val fqnTypeNonNullable: String,
 	val readableType: String,
-	val ksType: KSType,
 	val isNullable: Boolean,
 	val hasDefault: Boolean,
 	val isRequired: Boolean,

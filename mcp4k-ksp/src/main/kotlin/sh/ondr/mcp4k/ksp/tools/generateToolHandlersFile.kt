@@ -7,10 +7,7 @@ import sh.ondr.mcp4k.ksp.ParamInfo
 fun Mcp4kProcessor.generateToolHandlersFile() {
 	val fileName = "Mcp4kGeneratedToolHandlers"
 	val file = codeGenerator.createNewFile(
-		dependencies = Dependencies(
-			aggregating = true,
-			sources = tools.map { it.originatingFile }.toTypedArray(),
-		),
+		dependencies = Dependencies(aggregating = true),
 		packageName = mcp4kHandlersPackage,
 		fileName = fileName,
 	)

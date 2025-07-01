@@ -57,7 +57,7 @@ class Mcp4kIrTransformer(
 		val isInServer = callee.constructedClass.parentClassOrNull?.name?.asString() == "Server"
 		val isInRuntimePackage = callee.constructedClass.parentClassOrNull?.packageFqName?.asString() == "sh.ondr.mcp4k.runtime"
 		if (isNamedBuilder && isInServer && isInRuntimePackage) {
-			val initializerSymbol = pluginContext.referenceClass(initializerClassId) ?: error("Could not find Mcp4kInitializer")
+			val initializerSymbol = pluginContext.referenceClass(initializerClassId) ?: error("Could not find $initializerFq")
 
 			val builder =
 				DeclarationIrBuilder(
@@ -120,7 +120,7 @@ class Mcp4kIrTransformer(
 		call: IrCall,
 		functionName: String,
 	) {
-		val valueArguments = (0 until call.arguments.size).mapNotNull { idx -> call.arguments[idx] }
+		val valueArguments = (1 until call.arguments.size).mapNotNull { idx -> call.arguments[idx] }
 
 		valueArguments.forEach { arg ->
 			when (arg) {

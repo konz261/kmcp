@@ -30,13 +30,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 class ToolsTest {
-	companion object {
-		init {
-			// Force initialization
-			sh.ondr.mcp4k.generated.initializer.Mcp4kInitializer.toString()
-		}
-	}
-
 	@OptIn(ExperimentalCoroutinesApi::class)
 	@Test
 	fun testToolsList() =

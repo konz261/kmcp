@@ -6,7 +6,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import sh.ondr.mcp4k.generated.initializer.Mcp4kInitializer
 import sh.ondr.mcp4k.runtime.Client
 import sh.ondr.mcp4k.runtime.Server
 import sh.ondr.mcp4k.runtime.transport.ChannelTransport
@@ -26,13 +25,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class InitializationTest {
-	companion object {
-		init {
-			// Force initialization
-			Mcp4kInitializer.toString()
-		}
-	}
-
 	@Test
 	fun testInitHandshakeExact() =
 		runTest {

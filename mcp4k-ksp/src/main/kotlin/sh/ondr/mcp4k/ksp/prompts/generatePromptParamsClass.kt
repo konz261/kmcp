@@ -1,10 +1,13 @@
 package sh.ondr.mcp4k.ksp.prompts
 
 import com.google.devtools.ksp.processing.Dependencies
+import com.google.devtools.ksp.symbol.KSFile
 import sh.ondr.mcp4k.ksp.Mcp4kProcessor
-import sh.ondr.mcp4k.ksp.toFqnString
 
-fun Mcp4kProcessor.generatePromptParamsClass(promptMeta: PromptMeta) {
+fun Mcp4kProcessor.generatePromptParamsClass(
+	promptMeta: PromptMeta,
+	originFile: KSFile,
+) {
 	val code = buildString {
 		appendLine("package $mcp4kParamsPackage")
 		appendLine()
@@ -27,8 +30,8 @@ fun Mcp4kProcessor.generatePromptParamsClass(promptMeta: PromptMeta) {
 		promptMeta.params.forEachIndexed { index, p ->
 			val comma = if (index == promptMeta.params.size - 1) "" else ","
 
-			// 1) Get the base (non-nullable) FQN from KSType
-			val baseFqn = p.ksType.makeNotNullable().toFqnString()
+			// 1) Get the base (non-nullable) FQN
+			val baseFqn = p.fqnTypeNonNullable
 
 			// 2) Append '?' if it’s either nullable or hasDefault
 			val finalType = if (!p.hasDefault && !p.isNullable) baseFqn else "$baseFqn?"
@@ -49,14 +52,27 @@ fun Mcp4kProcessor.generatePromptParamsClass(promptMeta: PromptMeta) {
 		appendLine("const val ${promptMeta.paramsClassName}OriginalSource = true")
 	}
 
-	val dependencies = Dependencies(false, promptMeta.originatingFile)
-	codeGenerator.createNewFile(
-		dependencies = dependencies,
-		packageName = mcp4kParamsPackage,
-		fileName = promptMeta.paramsClassName,
-	).use { output ->
-		output.writer().use { writer ->
-			writer.write(code)
+	// Use isolating dependencies with the originating source file
+	val dependencies = Dependencies(aggregating = false, sources = arrayOf(originFile))
+	
+	try {
+		codeGenerator
+			.createNewFile(
+				dependencies = dependencies,
+				packageName = mcp4kParamsPackage,
+				fileName = promptMeta.paramsClassName,
+				extensionName = "kt",
+			).use { output ->
+				output.writer().use { writer ->
+					writer.write(code)
+				}
+			}
+	} catch (e: Exception) {
+		// File already exists from a previous round, skip
+		if (e.message?.contains("already exists") == true) {
+			logger.info("Skipping already generated file: ${promptMeta.paramsClassName}.kt")
+		} else {
+			throw e
 		}
 	}
 }

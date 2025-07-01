@@ -24,13 +24,6 @@ import kotlin.test.Test
 import kotlin.test.fail
 
 class CancellationTest {
-	companion object {
-		init {
-			// Force initialization
-			sh.ondr.mcp4k.generated.initializer.Mcp4kInitializer.toString()
-		}
-	}
-
 	@OptIn(ExperimentalCoroutinesApi::class)
 	@Test
 	fun testCancellingSlowToolCall() =

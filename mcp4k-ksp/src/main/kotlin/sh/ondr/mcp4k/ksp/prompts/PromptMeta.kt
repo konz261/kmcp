@@ -1,19 +1,17 @@
 package sh.ondr.mcp4k.ksp.prompts
 
-import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import sh.ondr.mcp4k.ksp.ParamInfo
 import sh.ondr.mcp4k.ksp.toFqnString
 
 data class PromptMeta(
-	val ksFunction: KSFunctionDeclaration,
 	val functionName: String,
 	val fqName: String,
 	val params: List<ParamInfo>,
 	val paramsClassName: String,
 	val returnTypeFqn: String,
 	val returnTypeReadable: String,
-	val originatingFile: KSFile,
+	val originatingFilePath: String,
 	val kdoc: String? = null,
 	val isServerExtension: Boolean,
 )
@@ -31,8 +29,8 @@ fun KSFunctionDeclaration.toPromptMeta(): PromptMeta {
 		ParamInfo(
 			name = parameterName,
 			fqnType = fqnParameterType,
+			fqnTypeNonNullable = parameterType.makeNotNullable().toFqnString(),
 			readableType = parameterType.toString(),
-			ksType = parameterType,
 			isNullable = isNullable,
 			hasDefault = hasDefault,
 			isRequired = isRequired,
@@ -40,14 +38,13 @@ fun KSFunctionDeclaration.toPromptMeta(): PromptMeta {
 	}
 
 	return PromptMeta(
-		ksFunction = this,
 		functionName = functionName,
 		paramsClassName = functionName.replaceFirstChar { it.uppercase() } + "McpPromptParams",
 		fqName = qualifiedName?.asString() ?: "",
 		params = paramInfos,
 		returnTypeFqn = returnType?.resolve()?.toFqnString() ?: returnType.toString(),
 		returnTypeReadable = returnType.toString(),
-		originatingFile = containingFile!!,
+		originatingFilePath = containingFile!!.filePath,
 		kdoc = docString,
 		isServerExtension = extensionReceiver != null, // We check for type in validation
 	)
