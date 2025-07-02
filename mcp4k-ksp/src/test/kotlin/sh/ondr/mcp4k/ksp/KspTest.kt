@@ -33,12 +33,11 @@ class KspTest : BaseKspTest() {
 				""".trimIndent(),
 			)
 
-			val initialResult =
-				GradleRunner.create()
-					.withProjectDir(projectDir)
-					.withArguments("clean", "build")
-					.forwardOutput()
-					.build()
+			val initialResult = GradleRunner.create()
+				.withProjectDir(projectDir)
+				.withArguments("clean", "build")
+				.forwardOutput()
+				.build()
 
 			println(projectDir)
 			assertTrue(initialResult.output.contains("BUILD SUCCESSFUL"), "Build was not successful.")
