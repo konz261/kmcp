@@ -8,10 +8,10 @@ First, make sure you have the main mcp4k plugin applied:
 
 ```kotlin
 plugins {
-  kotlin("multiplatform") version "2.1.0" // or kotlin("jvm")
-  kotlin("plugin.serialization") version "2.1.0"
+  kotlin("multiplatform") version "2.2.0" // or kotlin("jvm")
+  kotlin("plugin.serialization") version "2.2.0"
   
-  id("sh.ondr.mcp4k") version "0.4.1" // <-- Required
+  id("sh.ondr.mcp4k") version "0.4.2" // <-- Required
 }
 ```
 
@@ -19,7 +19,7 @@ Then add the file-provider dependency:
 
 ```kotlin
 dependencies {
-  implementation("sh.ondr.mcp4k:mcp4k-file-provider:0.4.1")
+  implementation("sh.ondr.mcp4k:mcp4k-file-provider:0.4.2")
 }
 ```
 
@@ -41,13 +41,6 @@ This module provides two file-based implementations of the `ResourceProvider` in
 Exposes a specific set of files with discrete URIs. Use this when you want to expose only certain files from a directory.
 
 ```kotlin
-import sh.ondr.mcp4k.fileprovider.DiscreteFileProvider
-import sh.ondr.mcp4k.fileprovider.File
-import sh.ondr.mcp4k.runtime.Server
-import sh.ondr.mcp4k.runtime.transport.StdioTransport
-import okio.FileSystem
-import okio.Path.Companion.toPath
-
 val fileProvider = DiscreteFileProvider(
   fileSystem = FileSystem.SYSTEM,
   rootDir = "/app/resources".toPath(),
@@ -103,10 +96,6 @@ This sends `notifications/resources/updated` to clients that have subscribed to 
 Exposes an entire directory using URI templates. Use this when you want to provide access to all files in a directory structure.
 
 ```kotlin
-import sh.ondr.mcp4k.fileprovider.TemplateFileProvider
-import okio.FileSystem
-import okio.Path.Companion.toPath
-
 val templateProvider = TemplateFileProvider(
   fileSystem = FileSystem.SYSTEM,
   rootDir = "/app/documents".toPath(),
@@ -163,15 +152,21 @@ For production use, implement your own `ResourceProvider` with appropriate secur
 ## Custom File Systems
 
 Both providers support Okio's `FileSystem` abstraction, allowing you to use:
-- `FileSystem.SYSTEM` - Real file system
+- `FileSystem.SYSTEM` - Real file system (only available in platform sets, not in `commonMain`)
 - `FakeFileSystem` - In-memory file system for testing
 - Custom implementations - Cloud storage, encrypted files, etc.
 
-Example with FakeFileSystem for testing:
+To use FakeFileSystem for testing, add the following dependency to your test set:
+
+```kts
+dependencies {
+    implementation("com.squareup.okio:okio-fakefilesystem:3.9.1")
+}
+```
+
+Here is some example code:
 
 ```kotlin
-import okio.fakefilesystem.FakeFileSystem
-
 val fakeFs = FakeFileSystem()
 fakeFs.createDirectories("/test/data".toPath())
 fakeFs.write("/test/data/sample.txt".toPath()) {
