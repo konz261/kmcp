@@ -37,12 +37,20 @@ Add mcp4k to your build:
 
 ```kotlin
 plugins {
-  kotlin("multiplatform") version "2.1.0" // or kotlin("jvm")
-  kotlin("plugin.serialization") version "2.1.0"
+  kotlin("multiplatform") version "2.2.0" // or kotlin("jvm")
+  kotlin("plugin.serialization") version "2.2.0"
 
-  id("sh.ondr.mcp4k") version "0.4.1" // <-- Add this
+  id("sh.ondr.mcp4k") version "0.4.2" // <-- Add this
 }
 ```
+
+### Version Compatibility
+
+mcp4k includes a compiler plugin that requires exact Kotlin version matching. Each mcp4k version is hard-linked to a specific Kotlin version:
+
+| mcp4k Version | Required Kotlin Version |
+|---------------|------------------------|
+| 0.4.2         | 2.2.0                  |
 
 ---
 
