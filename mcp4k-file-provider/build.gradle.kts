@@ -22,6 +22,7 @@ kotlin {
 	linuxX64()
 	macosArm64()
 	macosX64()
+	mingwX64()
 
 	sourceSets {
 		commonMain {
