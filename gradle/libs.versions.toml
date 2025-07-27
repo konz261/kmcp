@@ -2,6 +2,7 @@
 atomic = "0.26.1"
 build-config = "5.5.1"
 coroutines = "1.9.0"
+dokka = "2.0.0"
 mcp4k = "0.2.1" # Will be substituted
 koja = "0.4.2"
 kotlin = "2.2.0"
@@ -14,6 +15,7 @@ spotless = "7.0.2"
 
 [plugins]
 build-config = { id = "com.github.gmazzo.buildconfig", version.ref = "build-config" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
