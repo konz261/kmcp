@@ -4,14 +4,14 @@ build-config = "5.5.1"
 coroutines = "1.9.0"
 dokka = "2.0.0"
 mcp4k = "0.2.1" # Will be substituted
-koja = "0.4.2"
-kotlin = "2.2.0"
+koja = "0.4.3"
+kotlin = "2.2.10"
 kotlinx-io-core = "0.7.0"
 kotlinx-serialization = "1.8.1"
-ksp-api = "2.2.0-2.0.2"
+ksp-api = "2.2.10-2.0.2"
 maven-publish = "0.30.0"
 okio = "3.9.1"
-spotless = "7.0.2"
+spotless = "7.2.1"
 
 [plugins]
 build-config = { id = "com.github.gmazzo.buildconfig", version.ref = "build-config" }
