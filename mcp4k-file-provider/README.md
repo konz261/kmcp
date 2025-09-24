@@ -160,7 +160,7 @@ To use FakeFileSystem for testing, add the following dependency to your test set
 
 ```kts
 dependencies {
-    implementation("com.squareup.okio:okio-fakefilesystem:3.9.1")
+    implementation("com.squareup.okio:okio-fakefilesystem:3.16.0")
 }
 ```
 

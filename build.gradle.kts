@@ -1,6 +1,9 @@
+import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
+
 plugins {
 	alias(libs.plugins.kotlin.jvm).apply(false)
 	alias(libs.plugins.kotlin.multiplatform).apply(false)
+	alias(libs.plugins.gradle.versions)
 	alias(libs.plugins.maven.publish).apply(false)
 	alias(libs.plugins.ondrsh.mcp4k).apply(false)
 	alias(libs.plugins.spotless)
@@ -16,19 +19,20 @@ allprojects {
 				.using(project(":mcp4k-compiler"))
 		}
 	}
+
 	apply(plugin = "com.diffplug.spotless")
 
 	spotless {
 		kotlin {
 			target("**/*.kt")
 			targetExclude("**/build/**/*.kt")
-			ktlint()
+			ktlint("1.7.1")
 			// Force Unix line endings on all platforms
 			lineEndings = com.diffplug.spotless.LineEnding.UNIX
 		}
 		kotlinGradle {
 			target("**/*.gradle.kts")
-			ktlint()
+			ktlint("1.7.1")
 			lineEndings = com.diffplug.spotless.LineEnding.UNIX
 		}
 	}
@@ -46,4 +50,32 @@ dokka {
 	dokkaPublications.html {
 		outputDirectory.set(rootDir.resolve("build/dokka/html"))
 	}
+}
+
+tasks.withType<DependencyUpdatesTask> {
+	rejectVersionIf {
+		isNonStable(candidate.version)
+	}
+}
+
+fun isNonStable(version: String): Boolean {
+	val upperVersion = version.uppercase()
+	val unstableKeywords = listOf(
+		"ALPHA",
+		"BETA",
+		"RC",
+		"CR",
+		"M",
+		"PREVIEW",
+		"SNAPSHOT",
+		"DEV",
+		"PRE",
+		"BUILD",
+		"NIGHTLY",
+		"CANARY",
+		"EAP",
+		"MILESTONE",
+	)
+
+	return unstableKeywords.any { upperVersion.contains(it) }
 }
