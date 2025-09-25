@@ -19,22 +19,19 @@ allprojects {
 				.using(project(":mcp4k-compiler"))
 		}
 	}
+}
 
-	apply(plugin = "com.diffplug.spotless")
-
-	spotless {
-		kotlin {
-			target("**/*.kt")
-			targetExclude("**/build/**/*.kt")
-			ktlint("1.7.1")
-			// Force Unix line endings on all platforms
-			lineEndings = com.diffplug.spotless.LineEnding.UNIX
-		}
-		kotlinGradle {
-			target("**/*.gradle.kts")
-			ktlint("1.7.1")
-			lineEndings = com.diffplug.spotless.LineEnding.UNIX
-		}
+configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+	kotlin {
+		target("**/*.kt")
+		targetExclude("**/build/**/*.kt")
+		ktlint()
+		lineEndings = com.diffplug.spotless.LineEnding.UNIX
+	}
+	kotlinGradle {
+		target("**/*.gradle.kts")
+		ktlint()
+		lineEndings = com.diffplug.spotless.LineEnding.UNIX
 	}
 }
 
